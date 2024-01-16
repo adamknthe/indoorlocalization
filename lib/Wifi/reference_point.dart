@@ -8,3 +8,4 @@ class ReferencePoint{
   ReferencePoint({required this.latitude, required this.longitude, required this.accesspoints});
 }
 
+

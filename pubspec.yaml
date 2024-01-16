@@ -44,6 +44,7 @@ dependencies:
   vector_math: ^2.1.4
   flutter_map_geojson: ^1.0.5
   appwrite: ^9.0.0
+  syncfusion_flutter_charts: ^24.1.41
 
 
   # The following adds the Cupertino Icons font to your application.

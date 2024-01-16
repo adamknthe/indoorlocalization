@@ -1,3 +1,5 @@
+import 'dart:math';
+
 class StepDetection{
 
   static int steps = 0;
@@ -5,7 +7,7 @@ class StepDetection{
   static int valeys = 0;
   static int timeframe = 100; // milliesekond until new peak could beable must be between 110ms - 400ms in order to ensure a valid step [54] A. R. Pratama, W. Widyawan, and R. Hidayat, ‘‘Smartphone-based pedestrian dead reckoning as an indoor positioning system,’’ in Proc. ICSET,  Sep. 2012, pp. 1–6
   static double accZOld = 0.0;
-  static double threshold = 1.5; ///in M/s
+  static double threshold = 1.2; ///in M/s
   static Peak peak = Peak(timeStamp: 0, acc: 0, positive: true, counted: true);
   static Peak valey = Peak(timeStamp: 0, acc: 0, positive: false, counted: true);
   static int lasttimePeak = 0;
@@ -44,8 +46,15 @@ class StepDetection{
         }
       }
     }
-    print("Steps $steps");
+    //print("Steps $steps");
   }
+
+  static double Magnitude(double x, double y, double z){
+    return sqrt(pow(x, 2)+pow(y, 2)+pow(z, 2));
+  }
+
+
+
 }
 
 
@@ -65,7 +74,6 @@ class Peak{
 
   @override
   String toString() {
-    // TODO: implement toString
     return "$timeStamp , $acc , $positive, $counted";
   }
 }

@@ -6,8 +6,8 @@ import 'package:indoornavigation/Pages/sensor_page.dart';
 import 'package:indoornavigation/dra/Mercator.dart';
 import 'package:indoornavigation/dra/dra.dart';
 import 'package:indoornavigation/Util/levelCalculator.dart';
-import 'package:indoornavigation/Util/reference_point.dart';
-import 'package:indoornavigation/Util/wifi.dart';
+import 'package:indoornavigation/Wifi/reference_point.dart';
+import 'package:indoornavigation/Wifi/wifi.dart';
 import 'dart:io';
 import 'Pages/map_page.dart';
 import 'package:indoornavigation/Util/localData.dart';
@@ -92,9 +92,9 @@ class _MyHomePageState extends State<MyHomePage> {
     wifi.startListeningToScanResults(context).then((value){
       wifi.subscription?.onData((value){
         wasScannedAfterset = true;
-        for(int i = 0; i < value.length; i++){
-          print("bssid${value.elementAt(i).bssid} dBm: ${value.elementAt(i).level}");
-        }
+       //for(int i = 0; i < value.length; i++){
+       //  print("bssid${value.elementAt(i).bssid} dBm: ${value.elementAt(i).level}");
+       //}
         wifi.accessPoints = value;
         count++;
         setState(() {
