@@ -3,7 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:indoornavigation/Pages/sensor_page.dart';
-import 'package:indoornavigation/dra/Mercator.dart';
+import 'package:indoornavigation/Wifi/wifi_layer.dart';
+import 'package:indoornavigation/Util/Mercator.dart';
 import 'package:indoornavigation/dra/dra.dart';
 import 'package:indoornavigation/Util/levelCalculator.dart';
 import 'package:indoornavigation/Wifi/reference_point.dart';
@@ -13,12 +14,7 @@ import 'Pages/map_page.dart';
 import 'package:indoornavigation/Util/localData.dart';
 
 void main() {
-  print(Mercator.lat2y(52.5987912));
-  print(Mercator.lon2x(13.2978137));
-  print(Mercator.y2lat(6909127.242235316));
-  print(Mercator.x2lng(1480305.8497478173));
   runApp(MyApp());
-
 }
 
 class MyApp extends StatelessWidget {
@@ -78,7 +74,12 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
     LevelCalculator.checkSensorsAvaileble();
     SetupWifi();
+    SetupPosition();
     SetupFile();
+  }
+
+  Future<void> SetupPosition() async {
+    location = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high,forceAndroidLocationManager: false);
   }
 
   Future<void> SetupFile() async {
@@ -185,7 +186,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   onTap: () async {
                     location = await Geolocator.getCurrentPosition();
                     print("accespoints length:${wifi.accessPoints.length}");
-                    referencePoints.add(ReferencePoint(latitude: location.latitude as double, longitude: location.longitude as double, accesspoints: wifi.accessPoints));
+                    referencePoints.add(ReferencePoint(accesspointsNew: null ,latitude: location.latitude as double, longitude: location.longitude as double, accesspoints: wifi.accessPoints,neighborPosition: [Posi(x: 1, y: 2)]));
                     getPosition = true;
                     setState(() {
 
