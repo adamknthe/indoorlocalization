@@ -46,6 +46,8 @@ dependencies:
   appwrite: ^9.0.0
   syncfusion_flutter_charts: ^24.1.41
   maps_toolkit: ^3.0.0
+  geojson_vi: ^2.2.1
+
 
 
   # The following adds the Cupertino Icons font to your application.
@@ -167,6 +169,8 @@ flutter:
     - asset/mar_eg/20/563099/343903.png
     - asset/mar_eg/20/563099/343904.png
     - asset/mar_eg/20/563099/343905.png
+    - asset/maps/Mar_floor_o.geojson
+    - asset/maps/geo.json
 
 
 

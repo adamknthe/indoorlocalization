@@ -1,4 +1,6 @@
 import 'dart:core';
+import 'package:flutter_map_geojson/flutter_map_geojson.dart';
+import 'package:geojson_vi/geojson_vi.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:indoornavigation/Util/Mercator.dart';
 import 'package:indoornavigation/Wifi/reference_point.dart';
@@ -19,20 +21,18 @@ class WifiLayer{
 
 
   static bool IsInsideOfBuilding(String geojson, Position position){
-    
-    print(PolygonUtil.containsLocation(LatLng(position.latitude, position.longitude),getListfromPolygon(geojson, "building_outline"),true));
-    return false;
-
+    return PolygonUtil.containsLocation(LatLng(position.latitude, position.longitude),getListFromPolygonOutline(geojson),true);
   }
 
-  static List<LatLng> getListfromPolygon(String geojson,String type,[int? id]){
-    //TODO implement extraktion from json
-    List<LatLng> floor= [
-      LatLng( 52.517143764464635,13.32346165693886),
-      LatLng(52.51628804607495, 13.322776364805947),
-      LatLng(52.516086758870046, 13.323410768910065),
-      LatLng(52.51694351340379, 13.324082490900508),
-    ];
+  static List<LatLng> getListFromPolygonOutline(String json) {
+    List<LatLng> floor= [];
+    GeoJSON geoJSON =  GeoJSON.fromJSON(json);
+    List<List<double>> coordinates =  geoJSON.toMap()["features"][0]["geometry"]["coordinates"][0];
+    int i = 0;
+    while(coordinates.length > i ){
+      floor.add(LatLng(Mercator.y2lat(coordinates[i][1]), Mercator.x2lng(coordinates[i][0])));
+      i++;
+    }
     return floor;
   }
 
@@ -46,6 +46,9 @@ class WifiLayer{
     Posi rootPosi = Posi(x: root.longitude, y: root.latitude);
     ReferencePoint rootreferencePoint = ReferencePoint(latitude: root.latitude, longitude: root.longitude, accesspoints: <WiFiAccessPoint>[], neighborPosition: createPosis(rootPosi));
     //TODO write instantiate and other algorithm for when loading from server
+
+
+
 
   }
   

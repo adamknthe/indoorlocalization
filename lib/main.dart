@@ -15,13 +15,16 @@ import 'package:indoornavigation/Util/localData.dart';
 
 void main() {
   runApp(MyApp());
+
 }
 
 class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
     return MaterialApp(
+
       title: 'Flutter Demo',
       theme: ThemeData(
         // This is the theme of your application.
@@ -73,14 +76,16 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
     LevelCalculator.checkSensorsAvaileble();
-    SetupWifi();
+    //SetupWifi();
     SetupPosition();
-    SetupFile();
+    //SetupFile();
   }
 
   Future<void> SetupPosition() async {
+    String test =await DefaultAssetBundle.of(context).loadString("asset/maps/geo.json");
     location = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high,forceAndroidLocationManager: false);
-  }
+    print(WifiLayer.IsInsideOfBuilding(test,Position(longitude:13.32366, latitude:52.51658    , timestamp: DateTime.now(), accuracy: 0, altitude: 0, altitudeAccuracy: 0, heading: 0, headingAccuracy: 0, speed: 0, speedAccuracy: 0)));
+  }// 52.51678, latitude: 13.32347      52.51658, 13.32366
 
   Future<void> SetupFile() async {
     fileuseracc = await localData.createFile("wifi_with_positions");
