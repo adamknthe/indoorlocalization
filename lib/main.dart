@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:indoornavigation/Pages/sensor_page.dart';
 import 'package:indoornavigation/Wifi/wifi_layer.dart';
-import 'package:indoornavigation/Util/Mercator.dart';
-import 'package:indoornavigation/dra/dra.dart';
 import 'package:indoornavigation/Util/levelCalculator.dart';
 import 'package:indoornavigation/Wifi/reference_point.dart';
 import 'package:indoornavigation/Wifi/wifi.dart';
@@ -84,7 +81,7 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<void> SetupPosition() async {
     String test =await DefaultAssetBundle.of(context).loadString("asset/maps/geo.json");
     location = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high,forceAndroidLocationManager: false);
-    print(WifiLayer.IsInsideOfBuilding(test,Position(longitude:13.32366, latitude:52.51658    , timestamp: DateTime.now(), accuracy: 0, altitude: 0, altitudeAccuracy: 0, heading: 0, headingAccuracy: 0, speed: 0, speedAccuracy: 0)));
+
   }// 52.51678, latitude: 13.32347      52.51658, 13.32366
 
   Future<void> SetupFile() async {
@@ -191,7 +188,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   onTap: () async {
                     location = await Geolocator.getCurrentPosition();
                     print("accespoints length:${wifi.accessPoints.length}");
-                    referencePoints.add(ReferencePoint(accesspointsNew: null ,latitude: location.latitude as double, longitude: location.longitude as double, accesspoints: wifi.accessPoints,neighborPosition: [Posi(x: 1, y: 2)]));
+                    referencePoints.add(ReferencePoint(accesspointsNew: null ,latitude: location.latitude as double, longitude: location.longitude as double, accesspoints: wifi.accessPoints,neighborPosition: [Posi(x: 1, y: 2)],border: false));
                     getPosition = true;
                     setState(() {
 

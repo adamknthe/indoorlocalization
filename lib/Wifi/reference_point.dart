@@ -6,9 +6,10 @@ class ReferencePoint{
   final List<WiFiAccessPoint> accesspoints;
   final List<WiFiAccessPoint>? accesspointsNew;
   final List<Posi> neighborPosition;
+  final bool border;
 
 
-  ReferencePoint( {required this.latitude, required this.longitude, required this.accesspoints, this.accesspointsNew, required this.neighborPosition});
+  ReferencePoint( {required this.latitude, required this.longitude, required this.accesspoints, this.accesspointsNew, required this.neighborPosition, required this.border});
 }
 
 class Posi{

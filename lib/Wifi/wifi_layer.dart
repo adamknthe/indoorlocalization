@@ -16,12 +16,17 @@ class WifiLayer{
   final String GeojsonOfOutline;
   static double x = Mercator.x2lng(1);
   static double y = Mercator.y2lat(1);
+  static String jsonforall = "";
+  List<Posi> PositionAllreadySet;
 
-  WifiLayer(this.referencePoints,{required this.rootPosition, required this.Buildingname, required this.floorLevel, required this.GeojsonOfOutline ,this.squareSizeInMeters = 1.0});
+  WifiLayer(this.referencePoints,this.PositionAllreadySet,{required this.rootPosition, required this.Buildingname, required this.floorLevel, required this.GeojsonOfOutline ,this.squareSizeInMeters = 1.0});
 
+  static void getJsontoFunktionAndCall(String json){
+    jsonforall = json;
+  }
 
-  static bool IsInsideOfBuilding(String geojson, Position position){
-    return PolygonUtil.containsLocation(LatLng(position.latitude, position.longitude),getListFromPolygonOutline(geojson),true);
+  static bool isInsideOfBuilding(String geojson, Posi position){
+    return PolygonUtil.containsLocation(LatLng(position.y, position.x),getListFromPolygonOutline(geojson),true);
   }
 
   static List<LatLng> getListFromPolygonOutline(String json) {
@@ -36,7 +41,7 @@ class WifiLayer{
     return floor;
   }
 
-  static Position atReferencePoint(WifiLayer wifiLayer, List<WiFiAccessPoint> accessPoints){
+  Position atReferencePoint(WifiLayer wifiLayer, List<WiFiAccessPoint> accessPoints){
     ///TODO implements search for wifi points
     return wifiLayer.rootPosition;
   }
@@ -44,20 +49,42 @@ class WifiLayer{
   void createReferencePoints(WifiLayer wifiLayer){
     Position root = wifiLayer.rootPosition;
     Posi rootPosi = Posi(x: root.longitude, y: root.latitude);
-    ReferencePoint rootreferencePoint = ReferencePoint(latitude: root.latitude, longitude: root.longitude, accesspoints: <WiFiAccessPoint>[], neighborPosition: createPosis(rootPosi));
+    ReferencePoint rootreferencePoint = ReferencePoint(latitude: root.latitude, longitude: root.longitude, accesspoints: <WiFiAccessPoint>[], neighborPosition: createNeighborPosis(rootPosi),border: false);
     //TODO write instantiate and other algorithm for when loading from server
+    PositionAllreadySet.add(rootPosi);
+    wifiLayer.referencePoints.add(rootreferencePoint);
+
+    while(createNeighborPosis(rootPosi).length > 0){
+
+    }
+
+
+
+
+
 
 
 
 
   }
+
+
+
   
-  List<Posi> createPosis (Posi posi){
+  List<Posi> createNeighborPosis (Posi posi){
     List<Posi> result = [];
-    result.add(Posi(x: posi.x+x, y: y));
-    result.add(Posi(x: posi.x-x, y: y));
-    result.add(Posi(x: posi.x, y: y+y));
-    result.add(Posi(x: posi.x, y: y-y));
+    if(isInsideOfBuilding(jsonforall, Posi(x: posi.x+x, y: y)) == true && PositionAllreadySet.contains(Posi(x: posi.x+x, y: y)) == false){
+      result.add(Posi(x: posi.x+x, y: y));
+    }
+    if(isInsideOfBuilding(jsonforall, Posi(x: posi.x-x, y: y)) == true && PositionAllreadySet.contains(Posi(x: posi.x-x, y: y)) == false){
+      result.add(Posi(x: posi.x-x, y: y));
+    }
+    if(isInsideOfBuilding(jsonforall, Posi(x: posi.x, y: y+y)) == true && PositionAllreadySet.contains(Posi(x: posi.x, y: y+y)) == false){
+      result.add(Posi(x: posi.x, y: y+y));
+    }
+    if(isInsideOfBuilding(jsonforall, Posi(x: posi.x, y: y-y)) == true && PositionAllreadySet.contains(Posi(x: posi.x, y: y-y)) == false){
+      result.add(Posi(x: posi.x, y: y-y));
+    }
     return result;
   }
 
