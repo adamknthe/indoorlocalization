@@ -36,10 +36,10 @@ class Wifi{
     }
 
     // call startScan API
-    final result = await WiFiScan.instance.startScan();
+    await WiFiScan.instance.startScan();
 
     // reset access points.
-    accessPoints.clear();
+    accessPoints = [];
   }
 
   Future<bool> canGetScannedResults(BuildContext context) async {
