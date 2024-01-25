@@ -47,6 +47,7 @@ dependencies:
   syncfusion_flutter_charts: ^24.1.41
   maps_toolkit: ^3.0.0
   geojson_vi: ^2.2.1
+  geodart: ^0.3.2
 
 
 

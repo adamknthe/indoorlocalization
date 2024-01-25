@@ -216,6 +216,14 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  geodart:
+    dependency: "direct main"
+    description:
+      name: geodart
+      sha256: db7110d967eaf081def7c4867b711e4a1a627ed2357d349de709328ec1db4b1b
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.3.2"
   geojson_vi:
     dependency: "direct main"
     description:

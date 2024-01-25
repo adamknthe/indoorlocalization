@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_geojson/flutter_map_geojson.dart';
+import 'package:indoornavigation/Wifi/wifi_layer.dart';
 import 'package:latlong2/latlong.dart';
 
 class MapPage extends StatefulWidget {
-  const MapPage({super.key});
+  WifiLayer wifiLayer;
+  
+  MapPage( this.wifiLayer,{super.key});
 
   @override
   State<MapPage> createState() => _MapPageState();
@@ -289,11 +292,13 @@ class _MapPageState extends State<MapPage> {
     for(int i = 0; i < geoJsonParser.polygons.length; i++){
       print(geoJsonParser.polygons[i].borderColor);
     }
+    List<Marker> marker = [];
+    for(int i = 0; i < widget.wifiLayer.referencePoints.length; i++){
+      marker.add(Marker(point: LatLng(widget.wifiLayer.referencePoints[i].latitude,widget.wifiLayer.referencePoints[i].longitude), child: Icon(Icons.accessibility_rounded) ));
+    }
     return SafeArea(
       child: Scaffold(
         body: Container(
-          height: 500,
-          width: 500,
           child: FlutterMap(
             mapController: MapController(),
             options: MapOptions(
@@ -309,7 +314,8 @@ class _MapPageState extends State<MapPage> {
               ),
               PolygonLayer(polygons: geoJsonParser.polygons),
               PolylineLayer(polylines: geoJsonParser.polylines),
-              MarkerLayer(markers: geoJsonParser.markers)
+              MarkerLayer(markers: geoJsonParser.markers),
+              MarkerLayer(markers: marker)
             ],
           ),
         ),

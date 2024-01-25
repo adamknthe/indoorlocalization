@@ -6,42 +6,20 @@ import 'package:indoornavigation/Wifi/wifi_layer.dart';
 import 'package:indoornavigation/Util/levelCalculator.dart';
 import 'package:indoornavigation/Wifi/reference_point.dart';
 import 'package:indoornavigation/Wifi/wifi.dart';
+import 'package:indoornavigation/constants/runtime.dart';
 import 'dart:io';
 import 'Pages/map_page.dart';
 import 'package:indoornavigation/Util/localData.dart';
 
 void main() {
   runApp(MyApp());
-
 }
 
 class MyApp extends StatelessWidget {
-
   @override
   Widget build(BuildContext context) {
-
     return MaterialApp(
-
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a blue toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
+      debugShowCheckedModeBanner: true,
       home: const MyHomePage(title: 'Flutter Demo Home Page'),
     );
   }
@@ -57,7 +35,6 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-
   static const platForm = const MethodChannel("com.adam.wifi/scan");
 
   List<ReferencePoint> referencePoints = [];
@@ -68,21 +45,38 @@ class _MyHomePageState extends State<MyHomePage> {
   int count = 0;
   File fileuseracc = File("");
   bool wasScannedAfterset = false;
+  late WifiLayer wifiLayer;
 
   @override
   void initState() {
+    Runtime.initialize();
     super.initState();
     LevelCalculator.checkSensorsAvaileble();
-    //SetupWifi();
+    SetupWifi();
     SetupPosition();
     //SetupFile();
   }
 
-  Future<void> SetupPosition() async {
-    String test =await DefaultAssetBundle.of(context).loadString("asset/maps/geo.json");
-    location = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high,forceAndroidLocationManager: false);
+  Future<bool> getFirstLayer() async{
+    //String test = await DefaultAssetBundle.of(context).loadString("asset/maps/geo.json");
+    //WifiLayer.getJsontoFunktionAndCall(test);
+    //WifiLayer.createReferencePoints(wifiLayer);
+    try{
+      wifiLayer = (await WifiLayer.getWifiLayer("mar", 0))!;
+      return true;
+    }catch(e){
+      return false;
+    }
 
-  }// 52.51678, latitude: 13.32347      52.51658, 13.32366
+  }
+
+  Future<void> SetupPosition() async {
+
+
+    location = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        forceAndroidLocationManager: false);
+  } // 52.51678, latitude: 13.32347      52.51658, 13.32366
 
   Future<void> SetupFile() async {
     fileuseracc = await localData.createFile("wifi_with_positions");
@@ -92,17 +86,15 @@ class _MyHomePageState extends State<MyHomePage> {
   void SetupWifi() {
     wifi.canGetScannedResults(context);
     wifi.startScan();
-    wifi.startListeningToScanResults(context).then((value){
-      wifi.subscription?.onData((value){
+    wifi.startListeningToScanResults(context).then((value) {
+      wifi.subscription?.onData((value) {
         wasScannedAfterset = true;
-       //for(int i = 0; i < value.length; i++){
-       //  print("bssid${value.elementAt(i).bssid} dBm: ${value.elementAt(i).level}");
-       //}
+        //for(int i = 0; i < value.length; i++){
+        //  print("bssid${value.elementAt(i).bssid} dBm: ${value.elementAt(i).level}");
+        //}
         wifi.accessPoints = value;
         count++;
-        setState(() {
-
-        });
+        setState(() {});
         wifi.startScan();
       });
     });
@@ -121,9 +113,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     print(batteryLevel);
 
-    setState(() {
-
-    });
+    setState(() {});
   }
 
   Future<void> scan() async {
@@ -134,15 +124,12 @@ class _MyHomePageState extends State<MyHomePage> {
     } on PlatformException catch (e) {
       batteryLevel = "Failed to get battery level: '${e.message}'.";
     }
-
-    setState(() {
-
-    });
+    wifi.startScan();
+    setState(() {});
   }
 
   final myControllerx = TextEditingController();
   final myControllery = TextEditingController();
-
 
   @override
   Widget build(BuildContext context) {
@@ -173,10 +160,14 @@ class _MyHomePageState extends State<MyHomePage> {
                 ),
                 GestureDetector(
                   onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => MapPage()),
-                    );
+                    Navigator.push(context, MaterialPageRoute(
+                      builder: (context) {
+                        if(wifiLayer != null){
+                          return MapPage(wifiLayer);
+                        }
+                        return Container();
+                      },
+                    ));
                   },
                   child: Container(
                     color: Colors.cyanAccent,
@@ -185,38 +176,28 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                 ),
                 GestureDetector(
-                  onTap: () async {
-                    location = await Geolocator.getCurrentPosition();
-                    print("accespoints length:${wifi.accessPoints.length}");
-                    referencePoints.add(ReferencePoint(accesspointsNew: null ,latitude: location.latitude as double, longitude: location.longitude as double, accesspoints: wifi.accessPoints,neighborPosition: [Posi(x: 1, y: 2)],border: false));
-                    getPosition = true;
-                    setState(() {
-
-                    });
-                  },
-                  child: Container(
-                    color: Colors.green,
-                    height: 100,
-                    child: Text("set reference Point!"),
-                  ),
-                ),
-                GestureDetector(
-                  onTap: (){
+                  onTap: () {
                     print("check for wifi");
-                    print("referencePoints "+referencePoints.length.toString());
-                    if(referencePoints.isNotEmpty){
-                      print("ref acces "+referencePoints.first.accesspoints.length.toString());
+                    print(
+                        "referencePoints " + referencePoints.length.toString());
+                    if (referencePoints.isNotEmpty) {
+                      print("ref acces " +
+                          referencePoints.first.accesspoints.length.toString());
                     }
-                    print("wifi "+wifi.accessPoints.length.toString());
-                    for(int x = 0; x < referencePoints.length; x++ ) {
-                      for (int j = 0; j < referencePoints[x].accesspoints.length; j++) {
+                    print("wifi " + wifi.accessPoints.length.toString());
+                    for (int x = 0; x < referencePoints.length; x++) {
+                      for (int j = 0;
+                          j < referencePoints[x].accesspoints.length;
+                          j++) {
                         for (int i = 0; i < wifi.accessPoints.length; i++) {
-                          if (wifi.accessPoints[i].bssid == referencePoints[x].accesspoints[j].bssid && wifi.accessPoints[i].level >= referencePoints[x].accesspoints[j].level) {
-                            message = "lat: ${referencePoints[i].latitude} long: ${referencePoints[i].longitude}";
+                          if (wifi.accessPoints[i].bssid ==
+                                  referencePoints[x].accesspoints[j].bssid &&
+                              wifi.accessPoints[i].level >=
+                                  referencePoints[x].accesspoints[j].level) {
+                            message =
+                                "lat: ${referencePoints[i].latitude} long: ${referencePoints[i].longitude}";
 
-                            setState(() {
-
-                            });
+                            setState(() {});
                             print("done checking");
                             return;
                           }
@@ -224,9 +205,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       }
                     }
                     message = "update";
-                    setState(() {
-
-                    });
+                    setState(() {});
                   },
                   child: Container(
                     color: Colors.red,
@@ -236,16 +215,15 @@ class _MyHomePageState extends State<MyHomePage> {
                 ),
                 Text(count.toString()),
                 Column(
-                  children: List.generate(wifi.accessPoints.length, (index){
-                    return Text("bssid: ${wifi.accessPoints[index].bssid} dBm: ${wifi.accessPoints[index].level} name: ${wifi.accessPoints[index].ssid}");
+                  children: List.generate(wifi.accessPoints.length, (index) {
+                    return Text(
+                        "bssid: ${wifi.accessPoints[index].bssid} dBm: ${wifi.accessPoints[index].level} name: ${wifi.accessPoints[index].ssid}, ${wifi.accessPoints[index].is80211mcResponder}");
                   }),
                 ),
                 GestureDetector(
                   onTap: () async {
                     scan();
-                    setState(() {
-
-                    });
+                    setState(() {});
                   },
                   child: Container(
                     color: Colors.green,
@@ -263,21 +241,24 @@ class _MyHomePageState extends State<MyHomePage> {
                         controller: myControllery,
                       ),
                       GestureDetector(
-                        onTap: (){
-
-
-                          fileuseracc.writeAsString("${myControllerx.text},${myControllery.text},${wifi}\n", mode: FileMode.append);
+                        onTap: () {
+                          fileuseracc.writeAsString(
+                              "${myControllerx.text},${myControllery.text},${wifi}\n",
+                              mode: FileMode.append);
                           setState(() {
                             wasScannedAfterset = false;
                           });
                         },
-                        child: Container (
+                        child: Container(
                           height: 100,
-                          color:wasScannedAfterset == true ? Colors.purpleAccent : Colors.red,
-                          child: Text("$wasScannedAfterset save Wifi with x,y,wifilist"),
+                          color: wasScannedAfterset == true
+                              ? Colors.purpleAccent
+                              : Colors.red,
+                          child: Text(
+                              "$wasScannedAfterset save Wifi with x,y,wifilist"),
                         ),
                       )
-                      ],
+                    ],
                   ),
                 )
               ],
@@ -287,7 +268,10 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
     );
   }
-  void startlisten(){
-    wifi.subscription?.onData((data) {print(data);});
+
+  void startlisten() {
+    wifi.subscription?.onData((data) {
+      print(data);
+    });
   }
 }
