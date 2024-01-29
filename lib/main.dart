@@ -11,6 +11,8 @@ import 'dart:io';
 import 'Pages/map_page.dart';
 import 'package:indoornavigation/Util/localData.dart';
 
+import 'constants/sizes.dart';
+
 void main() {
   runApp(MyApp());
 }
@@ -50,7 +52,11 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     Runtime.initialize();
+
     super.initState();
+    //getFirstLayer().then((value){
+    //  print(value);
+    //});
     LevelCalculator.checkSensorsAvaileble();
     SetupWifi();
     SetupPosition();
@@ -133,6 +139,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    Sizes.initialize(context);
     // This method is rerun every time setState is called, for instance as done
     // by the _incrementCounter method above.
     //
@@ -162,10 +169,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   onTap: () {
                     Navigator.push(context, MaterialPageRoute(
                       builder: (context) {
-                        if(wifiLayer != null){
-                          return MapPage(wifiLayer);
-                        }
-                        return Container();
+                          return MapPage();
                       },
                     ));
                   },

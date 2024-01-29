@@ -30,7 +30,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_map: ^6.0.1
+  flutter_map: ^6.1.0
   latlong2: ^0.9.0
   environment_sensors: ^0.3.0
   wifi_scan: ^0.4.0+1

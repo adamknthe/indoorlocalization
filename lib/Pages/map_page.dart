@@ -1,275 +1,51 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_geojson/flutter_map_geojson.dart';
+import 'package:indoornavigation/Pages/Widgets/floorselector.dart';
+import 'package:indoornavigation/Util/BuildingInfo.dart';
+import 'package:indoornavigation/Util/map_loader.dart';
 import 'package:indoornavigation/Wifi/wifi_layer.dart';
+import 'package:indoornavigation/constants/Constants.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:syncfusion_flutter_charts/charts.dart';
+
+import '../constants/sizes.dart';
 
 class MapPage extends StatefulWidget {
-  WifiLayer wifiLayer;
-  
-  MapPage( this.wifiLayer,{super.key});
+  static int selectedfloor = 0;
+
+  MapPage({super.key});
 
   @override
   State<MapPage> createState() => _MapPageState();
 }
 
-String testGeoJson = '''{
-    "type": "FeatureCollection",
-"features": [
-{
-"type": "Feature",
-"properties": {
-"id": 0,
-"floor": 0,
-"name": "groundplane",
-"info": "",
-"roomnumber": ""
-},
-"geometry": {
-"coordinates": [
-[
-[
-13.322940714764513,
-52.51643401664231
-],
-[
-13.322828983202783,
-52.51628757114776
-],
-[
-13.323387641014733,
-52.51611758915834
-],
-[
-13.324066625125653,
-52.516938726838646
-],
-[
-13.323490777841442,
-52.517116550811636
-],
-[
-13.323370451543639,
-52.51696749253023
-],
-[
-13.323503669945666,
-52.51693088164697
-],
-[
-13.32352085941676,
-52.51694918709225
-],
-[
-13.323748619909367,
-52.516886425533215
-],
-[
-13.323576725197029,
-52.516666759370366
-],
-[
-13.323344667337551,
-52.51673475139518
-],
-[
-13.323232935774712,
-52.51659353707183
-],
-[
-13.323452101532268,
-52.51652554482848
-],
-[
-13.323267314716901,
-52.51631110706387
-],
-[
-13.323030959488165,
-52.516373869444664
-],
-[
-13.32306533843041,
-52.51640525060145
-],
-[
-13.322940714764513,
-52.51643401664231
-]
-]
-],
-"type": "Polygon"
-},
-"id": 0
-},
-{
-"type": "Feature",
-"properties": {
-"id": 1,
-"floor": 0,
-"name": "mensa",
-"info": "kantine",
-"roomnumber": "005"
-},
-"geometry": {
-"coordinates": [
-[
-[
-13.323339324016871,
-52.51673318938515
-],
-[
-13.323233037876975,
-52.51659589677985
-],
-[
-13.323450900385893,
-52.51652776180373
-],
-[
-13.323572581609511,
-52.51666612036897
-],
-[
-13.323339324016871,
-52.51673318938515
-]
-]
-],
-"type": "Polygon"
-},
-"id": 1
-},
-{
-"type": "Feature",
-"properties": {
-"id": 2,
-"floor": 0,
-"name": "flur",
-"info": "flur",
-"roomnumber": ""
-},
-"geometry": {
-"coordinates": [
-[
-[
-13.322933224177405,
-52.51630910567735
-],
-[
-13.32336628870027,
-52.516184441451685
-],
-[
-13.323961268240964,
-52.51690418135473
-],
-[
-13.323550191466808,
-52.51702267398906
-],
-[
-13.32353218427383,
-52.51698325409885
-],
-[
-13.323868445133712,
-52.51687964711218
-],
-[
-13.323634339471852,
-52.51658436585916
-],
-[
-13.32354921014013,
-52.5166154481897
-],
-[
-13.323502389006904,
-52.51656364429326
-],
-[
-13.32360028773914,
-52.516529971727635
-],
-[
-13.32339014190319,
-52.51626513484814
-],
-[
-13.323320010344816,
-52.51627806744963
-],
-[
-13.323292382761366,
-52.51624185615631
-],
-[
-13.322956601364268,
-52.51633755736697
-],
-[
-13.322933224177405,
-52.51630910567735
-]
-]
-],
-"type": "Polygon"
-},
-"id": 2
-},
-{
-"type": "Feature",
-"properties": {
-"id": 3,
-"floor": 0,
-"name": "raum",
-"info": "raum 001",
-"roomnumber": "001"
-},
-"geometry": {
-"coordinates": [
-[
-[
-13.323647662463486,
-52.516744553319086
-],
-[
-13.323582259730784,
-52.51667325344272
-],
-[
-13.323680997403585,
-52.51664636434677
-],
-[
-13.32373770764579,
-52.51671588410636
-],
-[
-13.323647662463486,
-52.516744553319086
-]
-]
-],
-"type": "Polygon"
-},
-"id": 3
-}
-]
-}''';
-
 class _MapPageState extends State<MapPage> {
+  List<MapLoader> _listMaps = [];
   GeoJsonParser geoJsonParser = GeoJsonParser(
     defaultMarkerColor: Colors.red,
     defaultPolygonBorderColor: Colors.blue,
     defaultPolygonFillColor: Colors.white,
     defaultCircleMarkerColor: Colors.red.withOpacity(0.25),
     polygonCreationCallback: (points, holePointsList, properties) {
-      if(properties['name'].toString().contains('raum')){
-        return Polygon(points:points,holePointsList: holePointsList, borderColor: Colors.red,borderStrokeWidth: 20.0, isFilled: true,color: Colors.lightGreenAccent);
+      if (properties['type'].toString().contains('Hallway')) {
+        return Polygon(
+            points: points,
+            holePointsList: holePointsList,
+            borderColor: Colors.black,
+            borderStrokeWidth: 2.0,
+            isFilled: true,
+            color: Colors.lightGreenAccent,
+            label: properties['name'].toString(),
+            labelPlacement: PolygonLabelPlacement.polylabel,
+            labelStyle: TextStyle(color: black, fontSize: 20));
       }
-      return Polygon(points: points,holePointsList: holePointsList,borderColor: Colors.black,borderStrokeWidth: 2.0,color: Colors.lightGreenAccent);
+      return Polygon(
+          points: points,
+          holePointsList: holePointsList,
+          borderColor: Colors.black,
+          borderStrokeWidth: 2.0,
+          color: Colors.lightGreenAccent);
     },
   );
 
@@ -286,40 +62,150 @@ class _MapPageState extends State<MapPage> {
     print('onTapMarkerFunction: $map');
   }
 
+  Future<bool> getMap(int level, String buildingName) async {
+    MapLoader? mapLoader = await MapLoader.getMaploader(buildingName, level);
+    if (mapLoader != null) {
+      _listMaps.add(mapLoader);
+      setState(() {});
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  Future<bool> getWholebuilding(String buildingName) async {
+    for (int i = -1; i < 7; i++) {
+      MapLoader? mapLoader = await MapLoader.getMaploader(buildingName, i);
+      if (mapLoader != null && i != 0) {
+        print(mapLoader.floorNumber);
+        _listMaps.add(mapLoader);
+      }
+    }
+    return true;
+  }
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    getMap(0, "mar");
+    getWholebuilding("mar");
+  }
+  int aktivefloor = 0;
+
   @override
   Widget build(BuildContext context) {
-    geoJsonParser.parseGeoJsonAsString(testGeoJson);
-    for(int i = 0; i < geoJsonParser.polygons.length; i++){
-      print(geoJsonParser.polygons[i].borderColor);
-    }
-    List<Marker> marker = [];
-    for(int i = 0; i < widget.wifiLayer.referencePoints.length; i++){
-      marker.add(Marker(point: LatLng(widget.wifiLayer.referencePoints[i].latitude,widget.wifiLayer.referencePoints[i].longitude), child: Icon(Icons.accessibility_rounded) ));
-    }
-    return SafeArea(
-      child: Scaffold(
+
+    if (_listMaps.length >= 1) {
+      String geoJson = _listMaps.first.GeoJson;
+      print(_listMaps.length);
+      for (int i = 0; i < _listMaps.length; i++) {
+        if (_listMaps[i].floorNumber == BuildingInfo.aktiveFloor) {
+          geoJson = _listMaps[i].GeoJson;
+        }
+      }
+      geoJsonParser.polygons.clear();
+      geoJsonParser.parseGeoJsonAsString(geoJson);
+      return SafeArea(
+          child: Scaffold(
+        appBar: AppBar(
+          actions: [
+            GestureDetector(
+              onTap: () {
+                Navigator.pop(context);
+              },
+              child: Icon(Icons.ac_unit),
+            )
+          ],
+        ),
         body: Container(
-          child: FlutterMap(
-            mapController: MapController(),
-            options: MapOptions(
-              center: LatLng(52.512451, 13.321862),
-              zoom: 12.0
+          child: Stack(children: [
+            FlutterMap(
+              mapController: MapController(),
+              options: MapOptions(
+                  center: LatLng(52.51662390833064, 13.323514830215117),
+                  zoom: 19.0,
+                  initialRotation: -25),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  /*urlTemplate: 'asset/mar_eg/{z}/{x}/{y}.png',
+                      tileProvider: AssetTileProvider(),*/
+                  minZoom: 12.0,
+                  maxZoom: 20.0,
+                ),
+                PolygonLayer(polygons: geoJsonParser.polygons),
+                PolylineLayer(polylines: geoJsonParser.polylines),
+                MarkerLayer(markers: geoJsonParser.markers),
+              ],
             ),
-            children: [
-              TileLayer(
-                urlTemplate: 'asset/mar_eg/{z}/{x}/{y}.png',
-                tileProvider: AssetTileProvider(),
-                minZoom: 12.0,
-                maxZoom: 20.0,
-              ),
-              PolygonLayer(polygons: geoJsonParser.polygons),
-              PolylineLayer(polylines: geoJsonParser.polylines),
-              MarkerLayer(markers: geoJsonParser.markers),
-              MarkerLayer(markers: marker)
-            ],
+            Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Floorseletor(-1, 6)
+                  ],
+                ),
+              ],
+            )
+          ]),
+        ),
+      ));
+    } else {
+      return Container(
+        child: CircularProgressIndicator(
+          color: Colors.red,
+          value: null,
+        ),
+      );
+    }
+  }
+
+  Widget Floorseletor(int levelStart, int levelEnd) {
+    List<int> floors = [];
+    floors.add(levelStart);
+    if (levelStart != levelEnd) {
+      int i = levelStart;
+      while (levelEnd != i) {
+        i++;
+        floors.add(i);
+      }
+    }
+    return Container(
+      margin: EdgeInsets.all(Sizes.paddingRegular),
+      height: 250,
+      width: 30,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.all(Radius.circular(20)),
+        color: white,
+      ),
+      child: RotatedBox(
+        quarterTurns: 3,
+        child: SliderTheme(
+          data: SliderThemeData(
+              inactiveTickMarkColor: Colors.black,
+              activeTickMarkColor: Colors.red,
+              trackHeight: 20.0,
+              inactiveTrackColor: white,
+              activeTrackColor: white),
+          child: Slider(
+            divisions: floors.length - 1,
+            value: aktivefloor.toDouble(),
+            label: aktivefloor.round().toString(),
+            min: levelStart.toDouble(),
+            max: levelEnd.toDouble(),
+            onChanged: (double value) {
+              setState(() {
+                aktivefloor = value.round();
+                print(value);
+                BuildingInfo.aktiveFloor = aktivefloor;
+              });
+            },
           ),
         ),
-      )
+      ),
     );
   }
 }

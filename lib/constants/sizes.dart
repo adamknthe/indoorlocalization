@@ -10,7 +10,7 @@ class Sizes {
   static double iconSize = 1;
   static double borderRadius = 1, borderRadiusBig = 1;
 
-  void initialize(BuildContext context) {
+  static void initialize(BuildContext context) {
     MediaQueryData m = MediaQuery.of(context);
     width = m.size.width;
     height = m.size.height;
