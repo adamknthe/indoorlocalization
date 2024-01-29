@@ -139,10 +139,8 @@ class StepDetector {
 
     // Check if the fused acceleration exceeds the dynamic threshold
     if (fusedAcceleration > dynamicThreshold) {
-      print("achieved");
       // Check for distinctive pattern in acceleration derivatives
       if (isStepPattern()) {
-        print("issteppatern");
         // Check if enough time has passed since the last step
         if (timestamp.difference(lastStepTime).inMilliseconds > STEP_TIME_THRESHOLD) {
           lastStepTime = timestamp;

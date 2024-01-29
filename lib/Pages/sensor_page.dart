@@ -83,7 +83,7 @@ class _SensorPageState extends State<SensorPage> {
   double yaw = 0;
   int pitch = 0;
   int roll = 0;
-  double pressure = 0;
+  static double pressure = 0;
 
   int i = 0;
   geo.Position? userPosition = null;
@@ -278,143 +278,151 @@ class _SensorPageState extends State<SensorPage> {
 
   Widget sensorStarter(){
     return GestureDetector(
-      onTap: () async { //Safe to file some steps
-        //File fileuseracc = await localData.createFile("useracc");
-        //fileuseracc.writeAsString("uaccx,uaccy,uaccz,umagnitude,accx,accy,accz,accmagnitude,time\n", mode: FileMode.append);
-        motion.motionSensors.magnetometer.listen((motion.MagnetometerEvent event) {
+      onTap: () async {
+        print("Sensorsready: ${StartSensorsAndPosition()}");
+      },
+      child: Container(
+        color: Colors.green,
+        height: 100,
+        child: Text("start sensor"),
+        margin: EdgeInsets.all(20.0),
+      ),
+    );
+  }
 
-          _magnetometer.setValues(event.x, event.y, event.z);
-          var matrix = motion.motionSensors.getRotationMatrix(_accelerometer, _magnetometer);
-          _absoluteOrientation2.setFrom(motion.motionSensors.getOrientation(matrix));
-          //print("absolte orientation from magnetometer:$matrix");
+
+  Future<bool> StartSensorsAndPosition() async {
+    bool allSenorsready = false;
+    motion.motionSensors.magnetometer.listen((motion.MagnetometerEvent event) {
+
+      _magnetometer.setValues(event.x, event.y, event.z);
+      var matrix = motion.motionSensors.getRotationMatrix(_accelerometer, _magnetometer);
+      _absoluteOrientation2.setFrom(motion.motionSensors.getOrientation(matrix));
+      //print("absolte orientation from magnetometer:$matrix");
+    });
+    motion.motionSensors.isOrientationAvailable().then((available) {
+      if (available) {
+        motion.motionSensors.orientation.listen((motion.OrientationEvent event) {
+            _orientation.setValues(event.yaw, event.pitch, event.roll);
+
         });
-        motion.motionSensors.isOrientationAvailable().then((available) {
-          if (available) {
-            motion.motionSensors.orientation.listen((motion.OrientationEvent event) {
-              setState(() {
-                _orientation.setValues(event.yaw, event.pitch, event.roll);
+      }
+    });
+    _streamSubscriptions.add(
+        gyroscopeEventStream(samplingPeriod: SensorInterval.fastestInterval).listen(
+              (GyroscopeEvent event) {
+            _gyroscopeValues = <double>[event.x, event.y, event.z];
+            //print(event);
+          },
+          onError: (error) {
+            // Logic to handle error
+            // Needed for Android in case sensor is not available
+          },
+          cancelOnError: true,
+        )
+    );
+    motion.motionSensors.absoluteOrientation.listen((motion.AbsoluteOrientationEvent event) {
+        _absoluteOrientation.setValues(event.yaw, event.pitch, event.roll);
+        //print("absolte orientation yaw:${event.yaw/2/pi*360},pitch:${event.pitch/2/pi*360},roll:yaw:${event.roll/2/pi*360}");
+        yaw = (event.yaw/2/pi*360);
+        pitch = (event.pitch/2/pi*360).round();
+        roll = (event.roll/2/pi*360).round();
+    });
+    _streamSubscriptions.add(
+        userAccelerometerEventStream(samplingPeriod: SensorInterval.uiInterval).listen(
+              (UserAccelerometerEvent event) {
+            _userAccelerometerValues = <double>[event.x, event.y, event.z];
+            // _accelerometerList.addAll(_userAccelerometerValues);
+            //accValues.add(_userAccelerometerValues);
 
-              });
+
+            if (chartData.length > 50) {
+              chartData.removeAt(0);
+              _chartSeriesController?.updateDataSource(
+                addedDataIndexes: <int>[chartData.length - 1],
+                removedDataIndexes: <int>[0],
+              );
+            } else {
+              _chartSeriesController?.updateDataSource(
+                addedDataIndexes: <int>[chartData.length - 1],
+              );
+            }
+            chartData.add(_ChartData(i, event.x, event.y, event.z));
+
+            if (chartData1.length > 50) {
+              chartData1.removeAt(0);
+              _chartSeriesController1?.updateDataSource(
+                addedDataIndexes: <int>[chartData1.length - 1],
+                removedDataIndexes: <int>[0],
+              );
+            } else {
+              _chartSeriesController1?.updateDataSource(
+                addedDataIndexes: <int>[chartData1.length - 1],
+              );
+            }
+            chartData1.add(_ChartData(i, event.x, event.y, event.z));
+
+            if (chartData2.length > 50) {
+              chartData2.removeAt(0);
+              _chartSeriesController2?.updateDataSource(
+                addedDataIndexes: <int>[chartData2.length - 1],
+                removedDataIndexes: <int>[0],
+              );
+            } else {
+              _chartSeriesController2?.updateDataSource(
+                addedDataIndexes: <int>[chartData2.length - 1],
+              );
+            }
+            chartData2.add(_ChartData(i, event.x, event.y, event.z));
+            i++;
+
+            StepDetector stepDetector = StepDetector();
+            //print(stepDetector.detectStep(_userAccelerometerValues, _gyroscopeValues, DateTime.now()));
+            if(stepDetector.detectStep(_userAccelerometerValues, _gyroscopeValues, DateTime.now())){
+              print("stepDetected!");
+              stepsall++;
+            }
+
+            StepDetection.detectPeakAndValey(_userAccelerometerValues, DateTime.now().millisecondsSinceEpoch);
+            setState(() {
+              if(StepDetection.steps > steps){
+                steps = StepDetection.steps;
+                if(userPosition != null){
+                  userPosition = DRA.nextPosition(yaw, 0.75, userPosition!);
+                }
+              }
+
             });
-          }
-        });
-        _streamSubscriptions.add(
-            gyroscopeEventStream(samplingPeriod: SensorInterval.fastestInterval).listen(
-                  (GyroscopeEvent event) {
-                _gyroscopeValues = <double>[event.x, event.y, event.z];
-                //print(event);
-              },
-              onError: (error) {
-                // Logic to handle error
-                // Needed for Android in case sensor is not available
-              },
-              cancelOnError: true,
-            )
-        );
-        motion.motionSensors.absoluteOrientation.listen((motion.AbsoluteOrientationEvent event) {
-          setState(() {
-            _absoluteOrientation.setValues(event.yaw, event.pitch, event.roll);
-            //print("absolte orientation yaw:${event.yaw/2/pi*360},pitch:${event.pitch/2/pi*360},roll:yaw:${event.roll/2/pi*360}");
-            yaw = (event.yaw/2/pi*360);
-            pitch = (event.pitch/2/pi*360).round();
-            roll = (event.roll/2/pi*360).round();
-          });
-        });
-        _streamSubscriptions.add(
-            userAccelerometerEventStream(samplingPeriod: SensorInterval.uiInterval).listen(
-                  (UserAccelerometerEvent event) {
-                _userAccelerometerValues = <double>[event.x, event.y, event.z];
-                // _accelerometerList.addAll(_userAccelerometerValues);
-                //accValues.add(_userAccelerometerValues);
+          },
+          onError: (error) {
+            // Logic to handle error
+            // Needed for Android in case sensor is not available
+          },
+          cancelOnError: true,
+        )
+    );
+    _streamSubscriptions.add(
+        accelerometerEventStream(samplingPeriod: SensorInterval.fastestInterval).listen(
+              (AccelerometerEvent event) {
+            _accelerometerValues = <double>[event.x, event.y, event.z];
+
+          },
+          onError: (error) {
+            // Logic to handle error
+            // Needed for Android in case sensor is not available
+          },
+          cancelOnError: true,
+        )
+
+    );
+    _streamSubscriptions.add(
+        EnvironmentSensors().pressure.listen((event) {
+          pressure = event;
+        })
+    );
 
 
-                if (chartData.length > 50) {
-                  chartData.removeAt(0);
-                  _chartSeriesController?.updateDataSource(
-                    addedDataIndexes: <int>[chartData.length - 1],
-                    removedDataIndexes: <int>[0],
-                  );
-                } else {
-                  _chartSeriesController?.updateDataSource(
-                    addedDataIndexes: <int>[chartData.length - 1],
-                  );
-                }
-                chartData.add(_ChartData(i, event.x, event.y, event.z));
-
-                if (chartData1.length > 50) {
-                  chartData1.removeAt(0);
-                  _chartSeriesController1?.updateDataSource(
-                    addedDataIndexes: <int>[chartData1.length - 1],
-                    removedDataIndexes: <int>[0],
-                  );
-                } else {
-                  _chartSeriesController1?.updateDataSource(
-                    addedDataIndexes: <int>[chartData1.length - 1],
-                  );
-                }
-                chartData1.add(_ChartData(i, event.x, event.y, event.z));
-
-                if (chartData2.length > 50) {
-                  chartData2.removeAt(0);
-                  _chartSeriesController2?.updateDataSource(
-                    addedDataIndexes: <int>[chartData2.length - 1],
-                    removedDataIndexes: <int>[0],
-                  );
-                } else {
-                  _chartSeriesController2?.updateDataSource(
-                    addedDataIndexes: <int>[chartData2.length - 1],
-                  );
-                }
-                chartData2.add(_ChartData(i, event.x, event.y, event.z));
-                i++;
-
-                StepDetector stepDetector = StepDetector();
-                //print(stepDetector.detectStep(_userAccelerometerValues, _gyroscopeValues, DateTime.now()));
-                if(stepDetector.detectStep(_userAccelerometerValues, _gyroscopeValues, DateTime.now())){
-                  print("stepDetected!");
-                  stepsall++;
-                }
-
-                StepDetection.detectPeakAndValey(_userAccelerometerValues, DateTime.now().millisecondsSinceEpoch);
-                setState(() {
-                  if(StepDetection.steps > steps){
-                    steps = StepDetection.steps;
-                    if(userPosition != null){
-                      userPosition = DRA.nextPosition(yaw, 0.75, userPosition!);
-                    }
-                  }
-
-                });
-              },
-              onError: (error) {
-                // Logic to handle error
-                // Needed for Android in case sensor is not available
-              },
-              cancelOnError: true,
-            )
-        );
-        _streamSubscriptions.add(
-            accelerometerEventStream(samplingPeriod: SensorInterval.fastestInterval).listen(
-                  (AccelerometerEvent event) {
-                _accelerometerValues = <double>[event.x, event.y, event.z];
-
-              },
-              onError: (error) {
-                // Logic to handle error
-                // Needed for Android in case sensor is not available
-              },
-              cancelOnError: true,
-            )
-
-        );
-        _streamSubscriptions.add(
-            EnvironmentSensors().pressure.listen((event) {
-              pressure = event;
-            })
-        );
-
-
-        /*
+    /*
         _streamSubscriptions.add(
             magnetometerEventStream(samplingPeriod: SensorInterval.fastestInterval).listen(
                 (MagnetometerEvent event) {
@@ -427,18 +435,10 @@ class _SensorPageState extends State<SensorPage> {
             cancelOnError: true,
           )
         );*/
-        //timer = Timer.periodic(const Duration(milliseconds: 200), _updateDataSource);
-        await Timer(Duration(seconds: 1),() => print("sensors Ready!"),);
-      },
-      child: Container(
-        color: Colors.green,
-        height: 100,
-        child: Text("start sensor"),
-        margin: EdgeInsets.all(20.0),
-      ),
-    );
+    //timer = Timer.periodic(const Duration(milliseconds: 200), _updateDataSource);
+    await Timer(Duration(seconds: 1),() => print("sensors Ready!"),);
+    return true;
   }
-
 
   Widget StepdetectionAndSensors(){
     return  Container(

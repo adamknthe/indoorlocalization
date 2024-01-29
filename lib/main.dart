@@ -7,6 +7,7 @@ import 'package:indoornavigation/Util/levelCalculator.dart';
 import 'package:indoornavigation/Wifi/reference_point.dart';
 import 'package:indoornavigation/Wifi/wifi.dart';
 import 'package:indoornavigation/constants/runtime.dart';
+import 'package:indoornavigation/dra/Sensors.dart';
 import 'dart:io';
 import 'Pages/map_page.dart';
 import 'package:indoornavigation/Util/localData.dart';
@@ -52,17 +53,20 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     Runtime.initialize();
-
     super.initState();
-    //getFirstLayer().then((value){
-    //  print(value);
-    //});
+    getFirstLayer().then((value){
+      print("Wifilayer is imported: $value");
+    });
     LevelCalculator.checkSensorsAvaileble();
     SetupWifi();
     SetupPosition();
+    SetupSensors().then((value){
+      print("Sensors is ready: $value");
+    });;
     //SetupFile();
   }
 
+  ///downloads wifiLayer
   Future<bool> getFirstLayer() async{
     //String test = await DefaultAssetBundle.of(context).loadString("asset/maps/geo.json");
     //WifiLayer.getJsontoFunktionAndCall(test);
@@ -76,19 +80,23 @@ class _MyHomePageState extends State<MyHomePage> {
 
   }
 
+  ///TODO gets a first position fix and check permissions
   Future<void> SetupPosition() async {
 
 
     location = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
         forceAndroidLocationManager: false);
+
   } // 52.51678, latitude: 13.32347      52.51658, 13.32366
 
+  ///not needed for realease
   Future<void> SetupFile() async {
     fileuseracc = await localData.createFile("wifi_with_positions");
     fileuseracc.writeAsString("x,y,wifilist\n", mode: FileMode.append);
   }
 
+  ///Start wifi Scanning
   void SetupWifi() {
     wifi.canGetScannedResults(context);
     wifi.startScan();
@@ -105,9 +113,10 @@ class _MyHomePageState extends State<MyHomePage> {
       });
     });
 
-    test();
+    //test();
   }
 
+  ///Maybe not important
   Future<void> test() async {
     String batteryLevel;
     try {
@@ -122,6 +131,7 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {});
   }
 
+  ///Maybe not important
   Future<void> scan() async {
     String batteryLevel;
     try {
@@ -132,6 +142,12 @@ class _MyHomePageState extends State<MyHomePage> {
     }
     wifi.startScan();
     setState(() {});
+  }
+
+  ///Start Sensors and StepDetection
+  Future<bool> SetupSensors() async{
+    MySensors mySensors = MySensors();
+    return mySensors.StartSensorsAndPosition();
   }
 
   final myControllerx = TextEditingController();
@@ -217,54 +233,15 @@ class _MyHomePageState extends State<MyHomePage> {
                     child: Text(message),
                   ),
                 ),
-                Text(count.toString()),
+                Container(
+                  child: Text("${MySensors.steps}",style: TextStyle(fontSize: 20)),
+                ),
                 Column(
                   children: List.generate(wifi.accessPoints.length, (index) {
                     return Text(
                         "bssid: ${wifi.accessPoints[index].bssid} dBm: ${wifi.accessPoints[index].level} name: ${wifi.accessPoints[index].ssid}, ${wifi.accessPoints[index].is80211mcResponder}");
                   }),
                 ),
-                GestureDetector(
-                  onTap: () async {
-                    scan();
-                    setState(() {});
-                  },
-                  child: Container(
-                    color: Colors.green,
-                    height: 100,
-                    child: Text("Scan"),
-                  ),
-                ),
-                Container(
-                  child: Column(
-                    children: [
-                      TextField(
-                        controller: myControllerx,
-                      ),
-                      TextField(
-                        controller: myControllery,
-                      ),
-                      GestureDetector(
-                        onTap: () {
-                          fileuseracc.writeAsString(
-                              "${myControllerx.text},${myControllery.text},${wifi}\n",
-                              mode: FileMode.append);
-                          setState(() {
-                            wasScannedAfterset = false;
-                          });
-                        },
-                        child: Container(
-                          height: 100,
-                          color: wasScannedAfterset == true
-                              ? Colors.purpleAccent
-                              : Colors.red,
-                          child: Text(
-                              "$wasScannedAfterset save Wifi with x,y,wifilist"),
-                        ),
-                      )
-                    ],
-                  ),
-                )
               ],
             ),
           ),
