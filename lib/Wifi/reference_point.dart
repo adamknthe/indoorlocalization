@@ -1,9 +1,9 @@
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart';
-import 'package:indoornavigation/Wifi/wifi.dart';
-
+import '../Util/posi.dart';
 import '../constants/constants.dart';
 import '../constants/runtime.dart';
+import 'accesspointmeasurement.dart';
 
 class ReferencePoint{
   final String documentId;
@@ -139,33 +139,3 @@ class ReferencePoint{
     }
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-class Posi{
-  double x;
-  double y;
-
-  Posi({required this.x, required this.y});
-}
-
-

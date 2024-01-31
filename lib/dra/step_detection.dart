@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:indoornavigation/dra/peak.dart';
 
 class StepDetection{
 
@@ -84,26 +85,6 @@ class StepDetection{
 
 }
 
-
-class Peak{
-  int timeStamp;
-  double acc;
-  bool positive;
-  bool counted;
-
-  Peak({
-    required this.timeStamp,
-    required this.acc,
-    required this.positive,
-    required this.counted
-  });
-
-
-  @override
-  String toString() {
-    return "$timeStamp , $acc , $positive, $counted";
-  }
-}
 
 class StepDetector {
   static const int WINDOW_SIZE = 20;

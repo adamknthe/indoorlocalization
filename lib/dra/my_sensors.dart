@@ -33,7 +33,7 @@ class MySensors {
   static double pressure = 0;
 
   int i = 0;
-  geo.Position? userPosition = null;
+  static geo.Position userPosition = geo.Position(longitude: 0, latitude: 0, timestamp: DateTime.timestamp(), accuracy: 0, altitude: 0, altitudeAccuracy: 0, heading: 0, headingAccuracy: 0, speed: 0, speedAccuracy: 0);
 
   static int counter = 50;
   static int steps = 0;
@@ -55,7 +55,7 @@ class MySensors {
   Vector3 _absoluteOrientation2 = Vector3.zero();
   File fileuseracc = File("");
 
-  static late geo.Position positionGps;
+  static geo.Position positionGps =  geo.Position(longitude: 0, latitude: 0, timestamp: DateTime.timestamp(), accuracy: 0, altitude: 0, altitudeAccuracy: 0, heading: 0, headingAccuracy: 0, speed: 0, speedAccuracy: 0);
   final geo.LocationSettings locationSettings = geo.LocationSettings(
     accuracy: geo.LocationAccuracy.high,
     distanceFilter: 0,

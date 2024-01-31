@@ -8,6 +8,8 @@ import 'package:indoornavigation/constants/constants.dart';
 import 'package:indoornavigation/constants/runtime.dart';
 import 'package:maps_toolkit/maps_toolkit.dart';
 
+import '../Util/posi.dart';
+
 
 class WifiLayer {
   List<ReferencePoint> referencePoints;
@@ -200,11 +202,9 @@ class WifiLayer {
 
   static Future<WifiLayer> fromJson(Map<String, dynamic> json) async {
     List<ReferencePoint> res = [];
-    DocumentList list = await Runtime.database.listDocuments(
-        databaseId: databaseIdWifi, collectionId: collectionIDReferencePoints);
+    DocumentList list = await Runtime.database.listDocuments(databaseId: databaseIdWifi, collectionId: collectionIDReferencePoints);
     for (int i = 0; i < json["ReferencePoints"].length; i++) {
-      ReferencePoint? referencePoint =
-          await ReferencePoint.getReferencePoint(json["ReferencePoints"][i]);
+      ReferencePoint? referencePoint = await ReferencePoint.getReferencePoint(json["ReferencePoints"][i]);
       if (referencePoint != null) {
         res.add(referencePoint);
       }
@@ -268,5 +268,23 @@ class WifiLayer {
     } catch (e) {
       return false;
     }
+  }
+}
+
+class WifiLayerGetter{
+  static WifiLayer? wifiLayer;
+
+  ///downloads wifiLayer
+  static Future<bool> getFirstLayer() async{
+    //String test = await DefaultAssetBundle.of(context).loadString("asset/maps/geo.json");
+    //WifiLayer.getJsontoFunktionAndCall(test);
+    //WifiLayer.createReferencePoints(wifiLayer);
+    try{
+      wifiLayer = (await WifiLayer.getWifiLayer("mar", 0))!;
+      return true;
+    }catch(e){
+      return false;
+    }
+
   }
 }

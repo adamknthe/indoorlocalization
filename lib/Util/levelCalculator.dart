@@ -7,5 +7,9 @@ class LevelCalculator{
     print(await environmentSensors.getSensorAvailable(SensorType.Light));
   }
 
+  int floor(double pressure){
+
+    return -99;
+  }
 
 }
