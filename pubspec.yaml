@@ -48,6 +48,7 @@ dependencies:
   maps_toolkit: ^3.0.0
   geojson_vi: ^2.2.1
   geodart: ^0.3.2
+  rbush: ^1.1.1
 
 
 

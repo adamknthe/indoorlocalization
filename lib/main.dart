@@ -157,6 +157,16 @@ class _MyHomePageState extends State<MyHomePage> {
                     child: Text("Map Page"),
                   ),
                 ),
+                GestureDetector(
+                  onTap: () {
+                    PositionEstimation.exceute();
+                  },
+                  child: Container(
+                    color: Colors.deepPurpleAccent,
+                    height: 100,
+                    child: Text("Test"),
+                  ),
+                ),
                 Container(
                   child: Text("${MySensors.steps}",style: TextStyle(fontSize: 20)),
                 ),

@@ -27,7 +27,7 @@ class Wifi{
     });
   }
 
-  Future<void> startScan() async {
+  Future<void>  startScan() async {
     // check if "can" startScan
     if (shouldCheckCan) {
       // check if can-startScan
