@@ -51,18 +51,19 @@ class _MyHomePageState extends State<MyHomePage> {
     Runtime.initialize();
     super.initState();
 
-    WifiLayerGetter.getFirstLayer().then((value){
-      print("Wifilayer is imported: $value");
-    });
+    //WifiLayerGetter.getFirstLayer().then((value){
+    //  print("Wifilayer is imported: $value");
+    //});
+    test();
 
-    LevelCalculator.checkSensorsAvaileble();
-    WifiMeasurements.SetupWifi(context);
-    startlisten();
-    SetupPosition();
-    SetupSensors().then((value){
-      print("Sensors is ready: $value");
-    });
-    PositionEstimation.startTimer();
+    //LevelCalculator.checkSensorsAvaileble();
+    //WifiMeasurements.SetupWifi(context);
+    //startlisten();
+    //SetupPosition();
+    //SetupSensors().then((value){
+    //  print("Sensors is ready: $value");
+    //});
+    //PositionEstimation.startTimer();
     //SetupFile();
   }
 
@@ -81,6 +82,15 @@ class _MyHomePageState extends State<MyHomePage> {
 
   ///Maybe not important
   Future<void> test() async {
+
+    ReferencePoint? referencePoint =await ReferencePoint.getReferencePoint("65be3aebb80743fc7013");
+    print("hello");
+    if(referencePoint != null){
+      print("not null");
+      print(referencePoint.accesspointsNew.length);
+      referencePoint.calculateAccespoints();
+    }
+    /*
     String batteryLevel;
     try {
       final int result = await platForm.invokeMethod('Scan');
@@ -90,7 +100,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     print(batteryLevel);
-
+    */
     setState(() {});
   }
 

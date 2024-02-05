@@ -116,7 +116,7 @@ class PositionEstimation {
     String reftoUpdate = docidNearestRef(wifiLayer!.referencePoints, estimatedPosi);
 
     ReferencePoint ref = wifiLayer!.referencePoints.firstWhere((element) => element.documentId == reftoUpdate);
-    if(Geolocator.distanceBetween(estimatedPosi.y, estimatedPosi.x, ref.latitude , ref.longitude) > 10){
+    if(Geolocator.distanceBetween(estimatedPosi.y, estimatedPosi.x, ref.latitude , ref.longitude) > 2.1){
       print("too far ${Geolocator.distanceBetween(estimatedPosi.y, estimatedPosi.x, ref.latitude , ref.longitude)}");
       getPositionWithoutWifi();
       return;

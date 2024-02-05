@@ -38,9 +38,9 @@ class ReferencePoint{
       }
     }
     List<AccessPointMeasurement> res2 = [];
-    if( json["accespointsNew"]!= null){
-      for(int i = 0; i < json["accespointsNew"].length; i++){
-        AccessPointMeasurement? accessPointMeasurement = await AccessPointMeasurement.getAccessPointMeasurement(json["accespoints"][i]);
+    if( json["accesspointsNew"]!= null){
+      for(int i = 0; i < json["accesspointsNew"].length; i++){
+        AccessPointMeasurement? accessPointMeasurement = await AccessPointMeasurement.getAccessPointMeasurement(json["accesspointsNew"][i]);
         if(accessPointMeasurement != null){
           res2.add(accessPointMeasurement);
         }
@@ -132,6 +132,7 @@ class ReferencePoint{
           databaseId: databaseIdWifi,
           collectionId: collectionIDReferencePoints,
           documentId: docId);
+      print(result.data);
       return fromJson(result.data,docId);
     }catch(e){
       print(e);
@@ -139,9 +140,13 @@ class ReferencePoint{
     }
   }
 
-  void clculateAccespoints(){
-     for(int i = 0; i < accesspointsNew.length; i++){
+  void calculateAccespoints(){
+     accesspointsNew.sort((a, b) {
+       return a.bssid.compareTo(b.bssid);
+     },);
 
-     }
+
+     print(accesspoints.length);
+     print("if nothing error");
   }
 }
