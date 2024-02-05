@@ -20,6 +20,8 @@ class StepDetection{
   static double topLimit = 2.5;
   static bool wasbiggerThanTopLimit = false;
 
+
+
   static void detectPeakAndValey (List<double> userAccValues, int timestamp){
     double uaccz = userAccValues[2];
     double actuelleAccY = accYOld * 0.8 + userAccValues[1] * .2;

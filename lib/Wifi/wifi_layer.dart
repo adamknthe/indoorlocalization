@@ -201,10 +201,12 @@ class WifiLayer {
   }
 
   static Future<WifiLayer> fromJson(Map<String, dynamic> json) async {
+    //TODO Speedup!!
     List<ReferencePoint> res = [];
     DocumentList list = await Runtime.database.listDocuments(databaseId: databaseIdWifi, collectionId: collectionIDReferencePoints);
     for (int i = 0; i < json["ReferencePoints"].length; i++) {
       ReferencePoint? referencePoint = await ReferencePoint.getReferencePoint(json["ReferencePoints"][i]);
+
       if (referencePoint != null) {
         res.add(referencePoint);
       }
@@ -269,6 +271,8 @@ class WifiLayer {
       return false;
     }
   }
+
+  void updateAllReferencePoints()
 }
 
 class WifiLayerGetter{

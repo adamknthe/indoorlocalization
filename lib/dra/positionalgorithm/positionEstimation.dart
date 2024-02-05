@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ffi';
 import 'dart:math';
 
 import 'package:geolocator/geolocator.dart';
@@ -51,17 +50,19 @@ class PositionEstimation {
   static late Timer updateTick;
 
   static Future<void> startTimer() async {
+    MySensors.userPosition = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+    MySensors.positionGps = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+    getEverything();
     updateTick = Timer.periodic(Duration(seconds: 2), (timer) {
       getEverything();
-      print("timer runing");
+      print("in timer ${estimatedPosi.toString()}");
       if (wifiLayer != null) {
-        print(wifiLayer!.Buildingname);
-        print("Wifi measured: ${WifiMeasurements.count}");
-        print(
-            "Wifi measured # of measured : ${WifiMeasurements.accespoints.length}");
+        print("Wifi measured # of measured : ${WifiMeasurements.accespoints.length}");
         searchWifiFix(wifiLayer!, measurement);
       }
     });
+    print("started timer");
+    getPositionWithoutWifi();
   }
 
   static void getEverything() {
@@ -99,16 +100,34 @@ class PositionEstimation {
       return;
     }
     */
-    if(pos.length > 0){
-      ReferencePoint ref = wifiLayer.referencePoints
-          .firstWhere((element) => element.documentId == pos[0].docId);
+    if (pos.length > 0) {
+      ReferencePoint ref = wifiLayer.referencePoints.firstWhere((element) => element.documentId == pos[0].docId);
       estimatedPosi = Posi(x: ref.longitude, y: ref.latitude);
+    }
+    if(pos.length == 0){
+      print("updating referenzpoints");
+      updateRef();
     }
 
   }
 
-  static List<PossiblePosition> getPossible(
-      List<ReferencePoint> ref, List<WiFiAccessPoint> accespoints) {
+  static void updateRef(){
+    getPositionWithoutWifi();
+    String reftoUpdate = docidNearestRef(wifiLayer!.referencePoints, estimatedPosi);
+
+    ReferencePoint ref = wifiLayer!.referencePoints.firstWhere((element) => element.documentId == reftoUpdate);
+    if(Geolocator.distanceBetween(estimatedPosi.y, estimatedPosi.x, ref.latitude , ref.longitude) > 10){
+      print("too far ${Geolocator.distanceBetween(estimatedPosi.y, estimatedPosi.x, ref.latitude , ref.longitude)}");
+      getPositionWithoutWifi();
+      return;
+    }else{
+      List<WiFiAccessPoint> accespoints = measurement;
+      SetNewAccespoints(ref, accespoints);
+    }
+
+  }
+
+  static List<PossiblePosition> getPossible(List<ReferencePoint> ref, List<WiFiAccessPoint> accespoints) {
     List<PossiblePosition> res = [];
     ref.forEach((reference) {
       int allError = 0;
@@ -122,13 +141,12 @@ class PositionEstimation {
           }
         });
       });
-      if(countoverlap != 0) {
+      if (countoverlap != 0) {
         res.add(PossiblePosition(
             avgError: (allError / countoverlap).round(),
             docId: reference.documentId,
             overlap: countoverlap,
-            nonoverlap: (accespoints.length - countoverlap))
-        );
+            nonoverlap: (accespoints.length - countoverlap)));
       }
     });
     res.sort(
@@ -144,21 +162,38 @@ class PositionEstimation {
   }
 
   static void getPositionWithoutWifi() {
-    if (gpsposition.latitude == 0 && steps == 0) {
+    if (gpsposition.latitude == 0) {
+      print("always returning too early2");
       return;
     }
-    if (gpsposition.timestamp.isAfter(draposition.timestamp)) {
-      if (gpsposition.accuracy < 7) {}
-    }
+
+      if(estimatedPosi.x != 0){
+        if (gpsposition.accuracy > 7) {
+          print("always returning too early2");
+          return;
+        }
+        double distance = Geolocator.distanceBetween(gpsposition.latitude, gpsposition.longitude, draposition.latitude, draposition.longitude);
+        if(distance < gpsposition.accuracy){
+          print("always returning too early3");
+          return;
+        }else{
+          estimatedPosi.x = gpsposition.longitude;
+          estimatedPosi.y = gpsposition.latitude;
+        }
+      }else{
+        estimatedPosi.x = draposition.longitude;
+        estimatedPosi.y = draposition.latitude;
+      }
+
+
+    print(estimatedPosi);
   }
 
   static ReferencePoint matchPosToRef() {
-    return ReferencePoint(
-        documentId: " ", latitude: 0, longitude: 0, accesspoints: []);
+    return ReferencePoint(documentId: " ", latitude: 0, longitude: 0, accesspoints: []);
   }
 
-  static Future<void> SetNewAccespoints(
-      ReferencePoint referencePoint, List<WiFiAccessPoint> accespoints) async {
+  static Future<void> SetNewAccespoints(ReferencePoint referencePoint, List<WiFiAccessPoint> accespoints) async {
     for (int i = 0; i < accespoints.length; i++) {
       if (!referencePoint.accesspoints.contains(accespoints[i])) {
         AccessPointMeasurement? accessPointMeasurement =
@@ -180,19 +215,17 @@ class PositionEstimation {
         }
       }
     }
+    print("reference point is updated");
     referencePoint.updateReferencePoint();
   }
 
-  static void exceute(){
-    if(wifiLayer != null){
-      docidNearestRef(wifiLayer!.referencePoints, Posi(x: 0,y: 0));
+  static void exceute() {
+    if (wifiLayer != null) {
+      docidNearestRef(wifiLayer!.referencePoints, Posi(x: 0, y: 0));
     }
   }
 
-
   static String docidNearestRef(List<ReferencePoint> ref, Posi posi) {
-    double xm = Mercator.x2lng(1);
-    double ym = Mercator.y2lat(1);
     final tree = RBushBase<ReferencePoint>(
         maxEntries: ref.length,
         toBBox: (item) => RBushBox(
@@ -204,9 +237,10 @@ class PositionEstimation {
         getMinY: (item) => item.latitude);
 
     tree.load(ref);
-    String docidRef = tree.knn(posi.x , posi.y, 1)[0].documentId;
+    String docidRef = tree.knn(posi.x, posi.y, 1)[0].documentId;
     return docidRef;
   }
+
 }
 
 class PossiblePosition {

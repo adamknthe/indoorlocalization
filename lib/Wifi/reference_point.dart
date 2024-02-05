@@ -138,4 +138,10 @@ class ReferencePoint{
       return null;
     }
   }
+
+  void clculateAccespoints(){
+     for(int i = 0; i < accesspointsNew.length; i++){
+
+     }
+  }
 }

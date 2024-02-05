@@ -4,10 +4,11 @@ import 'package:environment_sensors/environment_sensors.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_sensors/flutter_sensors.dart' as sens;
-import 'package:geolocator/geolocator.dart' as geo ;
+import 'package:geolocator/geolocator.dart' as geo;
 import 'package:indoornavigation/dra/dra.dart';
 import 'package:indoornavigation/dra/heading.dart';
 import 'package:indoornavigation/Util/localData.dart';
+import 'package:indoornavigation/dra/positionalgorithm/positionEstimation.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 import 'dart:math';
@@ -33,7 +34,17 @@ class MySensors {
   static double pressure = 0;
 
   int i = 0;
-  static geo.Position userPosition = geo.Position(longitude: 0, latitude: 0, timestamp: DateTime.timestamp(), accuracy: 0, altitude: 0, altitudeAccuracy: 0, heading: 0, headingAccuracy: 0, speed: 0, speedAccuracy: 0);
+  static geo.Position userPosition = geo.Position(
+      longitude: 0,
+      latitude: 0,
+      timestamp: DateTime.timestamp(),
+      accuracy: 0,
+      altitude: 0,
+      altitudeAccuracy: 0,
+      heading: 0,
+      headingAccuracy: 0,
+      speed: 0,
+      speedAccuracy: 0);
 
   static int counter = 50;
   static int steps = 0;
@@ -55,7 +66,17 @@ class MySensors {
   Vector3 _absoluteOrientation2 = Vector3.zero();
   File fileuseracc = File("");
 
-  static geo.Position positionGps =  geo.Position(longitude: 0, latitude: 0, timestamp: DateTime.timestamp(), accuracy: 0, altitude: 0, altitudeAccuracy: 0, heading: 0, headingAccuracy: 0, speed: 0, speedAccuracy: 0);
+  static geo.Position positionGps = geo.Position(
+      longitude: 0,
+      latitude: 0,
+      timestamp: DateTime.timestamp(),
+      accuracy: 0,
+      altitude: 0,
+      altitudeAccuracy: 0,
+      heading: 0,
+      headingAccuracy: 0,
+      speed: 0,
+      speedAccuracy: 0);
   final geo.LocationSettings locationSettings = geo.LocationSettings(
     accuracy: geo.LocationAccuracy.high,
     distanceFilter: 0,
@@ -85,10 +106,7 @@ class MySensors {
         });
       }
     });
-    _streamSubscriptions.add(
-        gyroscopeEventStream(samplingPeriod: SensorInterval.fastestInterval)
-            .listen(
-      (GyroscopeEvent event) {
+    _streamSubscriptions.add(gyroscopeEventStream(samplingPeriod: SensorInterval.fastestInterval).listen((GyroscopeEvent event) {
         _gyroscopeValues = <double>[event.x, event.y, event.z];
         //print(event);
       },
@@ -98,18 +116,14 @@ class MySensors {
       },
       cancelOnError: true,
     ));
-    motion.motionSensors.absoluteOrientation
-        .listen((motion.AbsoluteOrientationEvent event) {
+    motion.motionSensors.absoluteOrientation.listen((motion.AbsoluteOrientationEvent event) {
       _absoluteOrientation.setValues(event.yaw, event.pitch, event.roll);
       //print("absolte orientation yaw:${event.yaw/2/pi*360},pitch:${event.pitch/2/pi*360},roll:yaw:${event.roll/2/pi*360}");
       yaw = (event.yaw / 2 / pi * 360);
       pitch = (event.pitch / 2 / pi * 360).round();
       roll = (event.roll / 2 / pi * 360).round();
     });
-    _streamSubscriptions.add(
-        userAccelerometerEventStream(samplingPeriod: SensorInterval.uiInterval)
-            .listen(
-      (UserAccelerometerEvent event) {
+    _streamSubscriptions.add(userAccelerometerEventStream(samplingPeriod: SensorInterval.uiInterval).listen((UserAccelerometerEvent event) {
         _userAccelerometerValues = <double>[event.x, event.y, event.z];
         // _accelerometerList.addAll(_userAccelerometerValues);
         //accValues.add(_userAccelerometerValues);
@@ -126,9 +140,8 @@ class MySensors {
             _userAccelerometerValues, DateTime.now().millisecondsSinceEpoch);
         if (StepDetection.steps > steps) {
           steps = StepDetection.steps;
-          if (userPosition != null) {
-            userPosition = DRA.nextPosition(yaw, 0.75, userPosition!);
-          }
+          userPosition = geo.Position(longitude: PositionEstimation.estimatedPosi.x, latitude: PositionEstimation.estimatedPosi.y, timestamp: DateTime.now(), accuracy: 30, altitude: 0, altitudeAccuracy: 0, heading: 0, headingAccuracy: 0, speed: 0, speedAccuracy: 0);
+          userPosition = DRA.nextPosition(yaw, 0.65, userPosition);
         }
       },
       onError: (error) {
@@ -168,7 +181,11 @@ class MySensors {
         );*/
     //timer = Timer.periodic(const Duration(milliseconds: 200), _updateDataSource);
 
-    _streamSubscriptions.add(geo.Geolocator.getPositionStream(locationSettings: locationSettings).listen((event) {positionGps = event;}));
+    _streamSubscriptions.add(
+        geo.Geolocator.getPositionStream(locationSettings: locationSettings)
+            .listen((event) {
+      positionGps = event;
+    }));
 
     await Timer(
       Duration(seconds: 1),

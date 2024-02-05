@@ -9,6 +9,8 @@ class WifiMeasurements{
   static int count = 0;
   static List<WiFiAccessPoint> accespoints = [];
 
+
+
   static void SetupWifi(BuildContext context) {
     print("Setupwifi");
     wifi.canGetScannedResults();
@@ -32,4 +34,6 @@ class WifiMeasurements{
 
     //test();
   }
+
+
 }
