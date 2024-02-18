@@ -20,6 +20,7 @@ class PositionEstimation {
 
   static List<Position> _listPosition = [];
   static List<WiFiAccessPoint> measurement = [];
+  //TODO implemente only on measurement per square on last square
   static Position gpsposition = Position(
       longitude: 0,
       latitude: 0,
@@ -48,6 +49,8 @@ class PositionEstimation {
       speedAccuracy: 0);
   static WifiLayer? wifiLayer;
   static late Timer updateTick;
+  static int floor = 0;
+  static bool drapositionused = false;
 
   static Future<void> startTimer() async {
     MySensors.userPosition = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
@@ -59,7 +62,10 @@ class PositionEstimation {
       if (wifiLayer != null) {
         print("Wifi measured # of measured : ${WifiMeasurements.accespoints.length}");
         searchWifiFix(wifiLayer!, measurement);
+      }else{
+        getPositionWithoutWifi();
       }
+
     });
     print("started timer");
     getPositionWithoutWifi();
@@ -82,8 +88,7 @@ class PositionEstimation {
     if (accespoints.length < 1) {
       return;
     }
-    List<PossiblePosition> pos =
-        getPossible(wifiLayer.referencePoints, accespoints);
+    List<PossiblePosition> pos = getPossible(wifiLayer.referencePoints, accespoints);
 
     /*
     List<ReferencePoint> containAccespoints = [];
@@ -104,14 +109,12 @@ class PositionEstimation {
       ReferencePoint ref = wifiLayer.referencePoints.firstWhere((element) => element.documentId == pos[0].docId);
       estimatedPosi = Posi(x: ref.longitude, y: ref.latitude);
     }
-    if(pos.length == 0){
-      print("updating referenzpoints");
-      updateRef();
-    }
+
+    updateRef();
 
   }
 
-  static void updateRef(){
+  static Future<void> updateRef() async {
     getPositionWithoutWifi();
     String reftoUpdate = docidNearestRef(wifiLayer!.referencePoints, estimatedPosi);
 
@@ -163,11 +166,11 @@ class PositionEstimation {
 
   static void getPositionWithoutWifi() {
     if (gpsposition.latitude == 0) {
-      print("always returning too early2");
+      print("always returning too early1");
       return;
     }
 
-      if(estimatedPosi.x != 0){
+      if(draposition.timestamp.isAfter(gpsposition.timestamp)){
         if (gpsposition.accuracy > 7) {
           print("always returning too early2");
           return;
@@ -177,15 +180,26 @@ class PositionEstimation {
           print("always returning too early3");
           return;
         }else{
+          print("set to start to gps");
           estimatedPosi.x = gpsposition.longitude;
           estimatedPosi.y = gpsposition.latitude;
+          drapositionused =false;
+          MySensors.userPosition.longitude = gpsposition.longitude;
+          MySensors.userPosition.latitude = gpsposition.latitude;
+          MySensors.userPosition.timestamp = gpsposition.timestamp;
         }
-      }else{
+      }else {
+
+        print("set from dra");
+        print("drapositionused");
         estimatedPosi.x = draposition.longitude;
         estimatedPosi.y = draposition.latitude;
+        drapositionused = true;
       }
 
-
+    if(estimatedPosi.x == 0){
+      return;
+    }
     print(estimatedPosi);
   }
 
@@ -240,6 +254,10 @@ class PositionEstimation {
     String docidRef = tree.knn(posi.x, posi.y, 1)[0].documentId;
     return docidRef;
   }
+
+
+
+
 
 }
 

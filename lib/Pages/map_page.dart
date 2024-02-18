@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_geojson/flutter_map_geojson.dart';
@@ -6,10 +8,13 @@ import 'package:indoornavigation/Util/BuildingInfo.dart';
 import 'package:indoornavigation/Util/map_loader.dart';
 import 'package:indoornavigation/Wifi/wifi_layer.dart';
 import 'package:indoornavigation/constants/Constants.dart';
+import 'package:indoornavigation/dra/my_sensors.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 
+import '../Util/posi.dart';
 import '../constants/sizes.dart';
+import '../dra/positionalgorithm/positionEstimation.dart';
 
 class MapPage extends StatefulWidget {
   static int selectedfloor = 0;
@@ -21,6 +26,7 @@ class MapPage extends StatefulWidget {
 }
 
 class _MapPageState extends State<MapPage> {
+  LatLng position = LatLng(0, 0);
   List<MapLoader> _listMaps = [];
   GeoJsonParser geoJsonParser = GeoJsonParser(
     defaultMarkerColor: Colors.red,
@@ -84,12 +90,58 @@ class _MapPageState extends State<MapPage> {
     return true;
   }
 
+
+  StreamSubscription<Posi> x = Stream.value(PositionEstimation.estimatedPosi).listen((event) {print(event.y);});
+
+  List<Marker> markers = [];
+  Marker marker = Marker(
+    child: Icon(
+        Icons.accessibility
+    ),
+    point: LatLng(0, 0)
+  );
+
+  void startStream(){
+    //Stream.periodic(Duration(seconds: 3),(computationCount) {
+    //  print("map update1");
+    //  x.onData((data) {print("Started stream $data");
+    //  setState(() {
+    //    print("map update2");
+    //    position = LatLng(data.y, data.x);
+    //    print(data);
+    //  });
+    //  });
+    //
+    //},);
+    Timer.periodic(Duration(seconds: 3), (timer) {
+      print("map update1");
+      setState(() {
+        position = LatLng(PositionEstimation.estimatedPosi.y, PositionEstimation.estimatedPosi.x);
+        print(position);
+        markers.add(Marker(
+          child: Icon(
+              Icons.accessibility,
+
+          ),
+          point: position,
+
+        ));
+        print("lengthmarkes:${markers.length}");
+      });
+    });
+  }
+
+  MapController mapController = MapController(
+  );
+
   @override
   void initState() {
     // TODO: implement initState
+
     super.initState();
     getMap(0, "mar");
     getWholebuilding("mar");
+    startStream();
   }
   int aktivefloor = 0;
 
@@ -121,22 +173,27 @@ class _MapPageState extends State<MapPage> {
         body: Container(
           child: Stack(children: [
             FlutterMap(
-              mapController: MapController(),
+              mapController: mapController,
               options: MapOptions(
                   center: LatLng(52.51662390833064, 13.323514830215117),
                   zoom: 19.0,
-                  initialRotation: -25),
+                  minZoom: 10,
+                  maxZoom: 20,
+                  initialRotation: -25,
+
+              ),
               children: [
                 TileLayer(
                   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                   /*urlTemplate: 'asset/mar_eg/{z}/{x}/{y}.png',
                       tileProvider: AssetTileProvider(),*/
-                  minZoom: 12.0,
-                  maxZoom: 20.0,
+                  minZoom: 9.0,
+                  maxZoom: 21.0,
                 ),
                 PolygonLayer(polygons: geoJsonParser.polygons),
                 PolylineLayer(polylines: geoJsonParser.polylines),
                 MarkerLayer(markers: geoJsonParser.markers),
+                MarkerLayer(markers: markers)
               ],
             ),
             Column(
@@ -149,6 +206,24 @@ class _MapPageState extends State<MapPage> {
                   ],
                 ),
               ],
+            ),
+            Container(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  Container(
+                    child: Text(
+                      "$position\n"
+                      "lat:${PositionEstimation.estimatedPosi.y},long:${PositionEstimation.estimatedPosi.x}\n"
+                      "${WifiLayerGetter.wifiLayerDowaloaded}\n"
+                      "Scanned wifi${PositionEstimation.measurement.length}\n"
+                      "walked distance: ${PositionEstimation.walkedDistance} Stepstaken:${PositionEstimation.steps}\n"
+                      "heading ${MySensors.heading}\n"
+
+                    ),
+                  )
+                ],
+              ),
             )
           ]),
         ),
@@ -199,7 +274,7 @@ class _MapPageState extends State<MapPage> {
             onChanged: (double value) {
               setState(() {
                 aktivefloor = value.round();
-                print(value);
+                //print(value);
                 BuildingInfo.aktiveFloor = aktivefloor;
               });
             },

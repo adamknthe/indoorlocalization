@@ -28,6 +28,7 @@ class MySensors {
   List<List<double>> gyroValues = [];
   final _streamSubscriptions = <StreamSubscription<dynamic>>[];
 
+  static double heading = 0.0;
   double yaw = 0;
   int pitch = 0;
   int roll = 0;
@@ -37,7 +38,7 @@ class MySensors {
   static geo.Position userPosition = geo.Position(
       longitude: 0,
       latitude: 0,
-      timestamp: DateTime.timestamp(),
+      timestamp: DateTime.utc(0),
       accuracy: 0,
       altitude: 0,
       altitudeAccuracy: 0,
@@ -119,9 +120,11 @@ class MySensors {
     motion.motionSensors.absoluteOrientation.listen((motion.AbsoluteOrientationEvent event) {
       _absoluteOrientation.setValues(event.yaw, event.pitch, event.roll);
       //print("absolte orientation yaw:${event.yaw/2/pi*360},pitch:${event.pitch/2/pi*360},roll:yaw:${event.roll/2/pi*360}");
+
       yaw = (event.yaw / 2 / pi * 360);
       pitch = (event.pitch / 2 / pi * 360).round();
       roll = (event.roll / 2 / pi * 360).round();
+      heading = yaw;
     });
     _streamSubscriptions.add(userAccelerometerEventStream(samplingPeriod: SensorInterval.uiInterval).listen((UserAccelerometerEvent event) {
         _userAccelerometerValues = <double>[event.x, event.y, event.z];

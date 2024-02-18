@@ -58,14 +58,12 @@ class ReferencePoint{
 
   static Future<ReferencePoint?> createReferencePoint({required double latitude,required double longitude, required List<AccessPointMeasurement> accesspoints, required List<AccessPointMeasurement> accesspointsNew})async{
     try{
-      print("set reference point");
       Document document= await Runtime.database.createDocument(
           databaseId: databaseIdWifi,
           collectionId: collectionIDReferencePoints,
           documentId: "unique()",
           data: {
-            "latitutude" : latitude,
-            "longitude" : longitude,
+            "latitutude" : latitude, "longitude" : longitude,
             "accespoints" : List.generate(accesspoints.length, (int index) {
               return accesspoints[index].documentId;
             }),
@@ -132,21 +130,43 @@ class ReferencePoint{
           databaseId: databaseIdWifi,
           collectionId: collectionIDReferencePoints,
           documentId: docId);
-      print(result.data);
       return fromJson(result.data,docId);
     }catch(e){
-      print(e);
+      print(e.toString() +"docId not found" + docId);
       return null;
     }
   }
 
-  void calculateAccespoints(){
+
+
+  Future<void> calculateAccespoints() async {
      accesspointsNew.sort((a, b) {
        return a.bssid.compareTo(b.bssid);
      },);
+     AccessPointMeasurement a1 = accesspointsNew[0];
+     int occurence =1;
+     int avg = a1.level;
+     for(int i = 1; i < accesspointsNew.length; i++){
+       if(a1.bssid == accesspointsNew[i].bssid){
+         occurence++;
+         avg = avg + accesspointsNew[i].level;
+         await accesspointsNew[i].deleteAccessPointMeasurement().then((value) => print("deleted"));
+       }else{
+         print("addded 1");
+         a1.level = (avg/ occurence).round();
+         a1.updateAccessPointMeasurement();
+         accesspoints.add(a1);
+         avg = accesspointsNew[i].level;
+         a1 = accesspointsNew[i];
+         occurence = 1;
+       }
+     }
 
-
+     await updateReferencePoint().then((value) => print("updated"));
      print(accesspoints.length);
-     print("if nothing error");
+     for(int i = 0; i < accesspoints.length; i++){
+       print(accesspoints[i].bssid +" "+ accesspoints[i].level.toString());
+     }
+     print("if nothing error ${accesspoints.length}");
   }
 }

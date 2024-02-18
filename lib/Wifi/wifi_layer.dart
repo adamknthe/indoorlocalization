@@ -27,6 +27,8 @@ class WifiLayer {
   static double x = Mercator.x2lng(2);
   static double y = Mercator.y2lat(2);
 
+
+
   static void getJsontoFunktionAndCall(String json) {
     jsonforall = json;
   }
@@ -48,8 +50,7 @@ class WifiLayer {
         geoJSON.toMap()["features"][0]["geometry"]["coordinates"][0];
     int i = 0;
     while (coordinates.length > i) {
-      floor.add(LatLng(Mercator.y2lat(coordinates[i][1]),
-          Mercator.x2lng(coordinates[i][0])));
+      floor.add(LatLng(coordinates[i][1],coordinates[i][0]));
       i++;
     }
     return floor;
@@ -57,13 +58,12 @@ class WifiLayer {
 
   ///TODO implements search for wifi points
 
-  static Future<void> createReferencePoints(WifiLayer wifiLayer) async {
-    Posi root =
-        getCenter(getListFromPolygonOutline(wifiLayer.GeojsonOfOutline));
-    wifiLayer.referencePoints.addAll(generateMatrix(root, 500));
+  Future<void> createReferencePoints() async {
+    Posi root =getCenter(getListFromPolygonOutline(GeojsonOfOutline));
+    referencePoints.addAll(generateMatrix(root, 500, GeojsonOfOutline));
   }
 
-  static List<ReferencePoint> generateMatrix(Posi center, int gridSize) {
+  static List<ReferencePoint> generateMatrix(Posi center, int gridSize, String GeoJson) {
     List<ReferencePoint> res = [];
     //instantiate matrix
     List<List<Posi>> matrixPosi = [[]];
@@ -110,7 +110,7 @@ class WifiLayer {
       }
     }
     print("set squares done");
-    List<LatLng> latlng = getListFromPolygonOutline(jsonforall);
+    List<LatLng> latlng = getListFromPolygonOutline(GeoJson);
     for (int i = 0; i < gridSize; i++) {
       for (int j = 0; j < gridSize; j++) {
         if (isInsideOfBuildingFromList(latlng, matrixPosi[i][j])) {
@@ -125,7 +125,6 @@ class WifiLayer {
       }
     }
     print("alldone");
-    print(res.length);
     return res;
   }
 
@@ -170,7 +169,6 @@ class WifiLayer {
             longitude: referencePoints[i].longitude,
             accesspoints: referencePoints[i].accesspoints,
             accesspointsNew: referencePoints[i].accesspointsNew);
-        await Future.delayed(Duration(milliseconds: 1000));
         if (ref != null) {
           withId.add(ref);
           print(ref.documentId);
@@ -276,6 +274,7 @@ class WifiLayer {
 
 class WifiLayerGetter{
   static WifiLayer? wifiLayer;
+  static bool wifiLayerDowaloaded = false;
 
   ///downloads wifiLayer
   static Future<bool> getFirstLayer() async{
@@ -283,9 +282,12 @@ class WifiLayerGetter{
     //WifiLayer.getJsontoFunktionAndCall(test);
     //WifiLayer.createReferencePoints(wifiLayer);
     try{
-      wifiLayer = (await WifiLayer.getWifiLayer("mar", 0))!;
+      wifiLayer = (await WifiLayer.getWifiLayer("mar", 6))!;
+      wifiLayerDowaloaded = true;
       return true;
     }catch(e){
+      print(e);
+      wifiLayerDowaloaded = false;
       return false;
     }
 

@@ -1,7 +1,10 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:indoornavigation/Pages/sensor_page.dart';
+import 'package:indoornavigation/Util/map_loader.dart';
 import 'package:indoornavigation/Wifi/wifi_layer.dart';
 import 'package:indoornavigation/Util/levelCalculator.dart';
 import 'package:indoornavigation/Wifi/reference_point.dart';
@@ -10,6 +13,7 @@ import 'package:indoornavigation/Wifi/wifimeasurements.dart';
 import 'package:indoornavigation/constants/runtime.dart';
 import 'package:indoornavigation/dra/my_sensors.dart';
 import 'package:indoornavigation/dra/positionalgorithm/positionEstimation.dart';
+import 'package:vector_math/vector_math.dart' as vmath;
 import 'dart:io';
 import 'Pages/map_page.dart';
 import 'package:indoornavigation/Util/localData.dart';
@@ -45,6 +49,7 @@ class _MyHomePageState extends State<MyHomePage> {
   bool getPosition = false;
   late Position location;
   File fileuseracc = File("");
+  //static bool wifiLayerDowaloaded = false;
 
   @override
   void initState() {
@@ -54,17 +59,18 @@ class _MyHomePageState extends State<MyHomePage> {
     //WifiLayerGetter.getFirstLayer().then((value){
     //  print("Wifilayer is imported: $value");
     //});
-    test();
+    //test();
 
-    //LevelCalculator.checkSensorsAvaileble();
-    //WifiMeasurements.SetupWifi(context);
-    //startlisten();
-    //SetupPosition();
-    //SetupSensors().then((value){
-    //  print("Sensors is ready: $value");
-    //});
-    //PositionEstimation.startTimer();
-    //SetupFile();
+   //LevelCalculator.checkSensorsAvaileble();
+   WifiMeasurements.SetupWifi(context);
+   //startlisten();
+   SetupPosition();
+   //SetupSensors().then((value){
+   //  print("Sensors is ready: $value");
+   //});
+   //PositionEstimation.startTimer();
+   //SetupFile();
+
   }
 
   ///TODO gets a first position fix and check permissions
@@ -80,6 +86,20 @@ class _MyHomePageState extends State<MyHomePage> {
     fileuseracc.writeAsString("x,y,wifilist\n", mode: FileMode.append);
   }
 
+
+  Future<void> createWifiLayers(int squareSizeInMeter, String name, List<int> floors) async {
+    for(int x in floors){
+      MapLoader? mapLoader = await MapLoader.getMaploader(name, x);
+      if(mapLoader != null){
+        String geoJson = mapLoader.GeoJson;
+        WifiLayer wifiLayer = WifiLayer(referencePoints: [], Buildingname: name, floorLevel: x , GeojsonOfOutline: geoJson);
+        await wifiLayer.createReferencePoints();
+        print(wifiLayer.referencePoints.length);
+        await wifiLayer.createWifiLayer();
+      }
+    }
+
+  }
   ///Maybe not important
   Future<void> test() async {
 
@@ -175,6 +195,17 @@ class _MyHomePageState extends State<MyHomePage> {
                     color: Colors.deepPurpleAccent,
                     height: 100,
                     child: Text("Test"),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () async {
+                    print("start setting wifiLayer");
+                    await createWifiLayers(2, "mar", [6]);
+                  },
+                  child: Container(
+                    color: Colors.deepPurpleAccent,
+                    height: 100,
+                    child: Text("setWifiLayer"),
                   ),
                 ),
                 Container(

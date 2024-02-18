@@ -100,7 +100,7 @@ class AccessPointMeasurement extends WiFiAccessPoint{
           documentId: docId);
       return fromJson(result.data,docId);
     }catch(e){
-      print(e);
+      print(e.toString() + " accesspointdocId not found:$docId");
       return null;
     }
   }

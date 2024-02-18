@@ -1,13 +1,7 @@
-
-import 'dart:async';
-import 'dart:convert';
 import 'dart:math';
-
-import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:indoornavigation/Util/Mercator.dart';
 import 'package:vector_math/vector_math.dart';
-import 'package:sensors_plus/sensors_plus.dart';
 
 class DRA{
 
@@ -16,7 +10,7 @@ class DRA{
 
 
   static Position nextPosition(double heading, double stepLength, Position oldPosition){
-    double latNew = oldPosition.latitude + Mercator.y2lat(stepLength) * cos(radians(heading));
+    double latNew = oldPosition.latitude + Mercator.y2lat(stepLength) * cos(radians(heading));//TODO
     double longNew = oldPosition.longitude + Mercator.x2lng(stepLength) * sin(radians(heading));
 
 

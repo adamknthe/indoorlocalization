@@ -77,6 +77,8 @@ class _SensorPageState extends State<SensorPage> {
         );
       }
       count = count + 1;
+      fileuseracc.writeAsString("$count,${userPosition?.latitude},${userPosition?.longitude},${positionGps?.latitude},${positionGps?.longitude},$yaw\n", mode: FileMode.append);
+
   }
 
   late Timer timer;
@@ -87,6 +89,8 @@ class _SensorPageState extends State<SensorPage> {
 
   int i = 0;
   geo.Position? userPosition = null;
+  geo.Position? positionGps = null;
+
 
   static int counter = 50;
   static int steps = 0;
@@ -189,8 +193,8 @@ class _SensorPageState extends State<SensorPage> {
 
 
   Future<void> SetupFile() async {
-    fileuseracc = await localData.createFile("pressure_and_stockwerke_mit_verschidenen_höhen");
-    fileuseracc.writeAsString("stockUndPos,wifilist\n", mode: FileMode.append);
+    fileuseracc = await localData.createFile("position vergleich gps and dead reckoning");
+    fileuseracc.writeAsString("counter,latDra,longDra,latGps,longGps,yaw\n", mode: FileMode.append);
   }
 
   @override
@@ -280,6 +284,7 @@ class _SensorPageState extends State<SensorPage> {
     return GestureDetector(
       onTap: () async {
         print("Sensorsready: ${StartSensorsAndPosition()}");
+        SetupFile();
       },
       child: Container(
         color: Colors.green,
@@ -289,6 +294,11 @@ class _SensorPageState extends State<SensorPage> {
       ),
     );
   }
+
+  final geo.LocationSettings locationSettings = geo.LocationSettings(
+    accuracy: geo.LocationAccuracy.best,
+    distanceFilter: 0,
+  );
 
 
   Future<bool> StartSensorsAndPosition() async {
@@ -324,7 +334,7 @@ class _SensorPageState extends State<SensorPage> {
     motion.motionSensors.absoluteOrientation.listen((motion.AbsoluteOrientationEvent event) {
         _absoluteOrientation.setValues(event.yaw, event.pitch, event.roll);
         //print("absolte orientation yaw:${event.yaw/2/pi*360},pitch:${event.pitch/2/pi*360},roll:yaw:${event.roll/2/pi*360}");
-        yaw = (event.yaw/2/pi*360);
+        yaw = (event.yaw/2/pi*360) % 360;
         pitch = (event.pitch/2/pi*360).round();
         roll = (event.roll/2/pi*360).round();
     });
@@ -388,6 +398,7 @@ class _SensorPageState extends State<SensorPage> {
               if(StepDetection.steps > steps){
                 steps = StepDetection.steps;
                 if(userPosition != null){
+                  print(yaw);
                   userPosition = DRA.nextPosition(yaw, 0.75, userPosition!);
                 }
               }
@@ -405,7 +416,6 @@ class _SensorPageState extends State<SensorPage> {
         accelerometerEventStream(samplingPeriod: SensorInterval.fastestInterval).listen(
               (AccelerometerEvent event) {
             _accelerometerValues = <double>[event.x, event.y, event.z];
-
           },
           onError: (error) {
             // Logic to handle error
@@ -413,13 +423,18 @@ class _SensorPageState extends State<SensorPage> {
           },
           cancelOnError: true,
         )
-
     );
     _streamSubscriptions.add(
         EnvironmentSensors().pressure.listen((event) {
           pressure = event;
         })
     );
+    _streamSubscriptions.add(
+        geo.Geolocator.getPositionStream(locationSettings: locationSettings)
+            .listen((event) {
+          positionGps = event;
+
+        }));
 
 
     /*
