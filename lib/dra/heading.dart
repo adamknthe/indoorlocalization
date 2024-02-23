@@ -23,8 +23,8 @@ class Calculations {
   double pitch = 0.0;
   double roll = 0.0;
   double yaw = 0.0;
-  double previous_yaw = 0.0;
-  double final_yaw = 0.0;
+  static double previous_yaw = 0.0;
+  static double final_yaw = 0.0;
 
   static double thetaFilterold = 0;
   static double phiFilterOld = 0;
@@ -32,6 +32,7 @@ class Calculations {
   static double phiG = 0;
   static double phi = 0;
   static double theta = 0;
+  static int timesaver = DateTime.now().millisecondsSinceEpoch-1;
 
   double updateOrientation(
       double gyro_x,
@@ -74,12 +75,6 @@ class Calculations {
     return final_yaw;
   }
 
-  void updatePosition(
-    int heading,
-    double acc_x,
-    double acc_y,
-    double acc_z,
-  ) {}
 
   int updateHeading(
       double gyro_x,
@@ -105,8 +100,7 @@ class Calculations {
         (gyro_y / 2 / pi * 360) *
             dt; //TODO dokument why Rad to Deg there was an error
 
-    theta =
-        (theta + (gyro_x / 2 / pi * 360) * dt) * 0.95 + thetaFilterNew * 0.05;
+    theta = (theta + (gyro_x / 2 / pi * 360) * dt) * 0.95 + thetaFilterNew * 0.05;
     phi = (phi + (gyro_y / 2 / pi * 360) * dt) * 0.95 + phiFilterNew * 0.05;
 
     //print("theta: $thetaAcc, phi: $phiAcc");
@@ -119,14 +113,8 @@ class Calculations {
 
     //print("phirad: $phi, thetarad: $theta");
 
-    double Ym = magn_y * cos(thetaRad) +
-        magn_z *
-            sin(thetaRad); //magn_y*cos(thetaRad)-magn_x*sin(phiRad)*sin(thetaRad)+magn_z*cos(phiRad)*sin(thetaRad);
-    double Xm = magn_y * sin(phiRad) * sin(thetaRad) +
-        magn_x * cos(phiRad) -
-        magn_z *
-            sin(phiRad) *
-            cos(thetaRad); //magn_x*cos(phiRad)+magn_z*sin(phiRad);
+    double Ym = magn_y * cos(thetaRad) + magn_z * sin(thetaRad); //magn_y*cos(thetaRad)-magn_x*sin(phiRad)*sin(thetaRad)+magn_z*cos(phiRad)*sin(thetaRad);
+    double Xm = magn_y * sin(phiRad) * sin(thetaRad) + magn_x * cos(phiRad) - magn_z * sin(phiRad) * cos(thetaRad); //magn_x*cos(phiRad)+magn_z*sin(phiRad);
 
     //print("magn_x: $magn_x, magn_y: $magn_y, magn_z: $magn_z, $Xm, $Ym");
 

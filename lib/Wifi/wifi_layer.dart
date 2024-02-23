@@ -9,6 +9,7 @@ import 'package:indoornavigation/constants/runtime.dart';
 import 'package:maps_toolkit/maps_toolkit.dart';
 
 import '../Util/posi.dart';
+import 'accesspointmeasurement.dart';
 
 
 class WifiLayer {
@@ -199,16 +200,42 @@ class WifiLayer {
   }
 
   static Future<WifiLayer> fromJson(Map<String, dynamic> json) async {
-    //TODO Speedup!!
-    List<ReferencePoint> res = [];
-    DocumentList list = await Runtime.database.listDocuments(databaseId: databaseIdWifi, collectionId: collectionIDReferencePoints);
-    for (int i = 0; i < json["ReferencePoints"].length; i++) {
-      ReferencePoint? referencePoint = await ReferencePoint.getReferencePoint(json["ReferencePoints"][i]);
+    //TODO Mega Speedup!!
+    DocumentList accessPointList = await Runtime.database.listDocuments(databaseId: databaseIdWifi, collectionId: collectionIDAccesPoints,queries: [Query.limit(100)]);
+    String lastIdAccespoints = accessPointList.documents[accessPointList.documents.length - 1].$id;
+    while(accessPointList.documents.length < accessPointList.total ){
+      DocumentList newlist = await Runtime.database.listDocuments(databaseId: databaseIdWifi, collectionId: collectionIDAccesPoints,queries: [Query.limit(100),Query.cursorAfter(lastIdAccespoints)]);
+      accessPointList.documents.addAll(newlist.documents);
+      lastIdAccespoints = accessPointList.documents[accessPointList.documents.length - 1].$id;
+    }
+    print("Accespoint list length "+ accessPointList.documents.length.toString());
 
-      if (referencePoint != null) {
-        res.add(referencePoint);
+    List<AccessPointMeasurement> _listAccesspoint = [];
+    for(int i = 0; i < accessPointList.documents.length; i++){
+      _listAccesspoint.add(AccessPointMeasurement.fromJson(accessPointList.documents[i].data, accessPointList.documents[i].$id));
+    }
+    List<String> idReferencepoints = List.generate(json["ReferencePoints"].length, (index) => json["ReferencePoints"][index].toString());
+
+    DocumentList list = await Runtime.database.listDocuments(databaseId: databaseIdWifi, collectionId: collectionIDReferencePoints,queries: [Query.limit(100)]);
+    String lastId = list.documents[list.documents.length - 1].$id;
+
+    while(list.documents.length < list.total ){
+      DocumentList newlist = await Runtime.database.listDocuments(databaseId: databaseIdWifi, collectionId: collectionIDReferencePoints,queries: [Query.limit(100),Query.cursorAfter(lastId)]);
+      list.documents.addAll(newlist.documents);
+      lastId = list.documents[list.documents.length - 1].$id;
+    }
+
+    List<ReferencePoint> res = [];
+
+    print("di idd length ${list.documents.length}");
+
+    for(int i = 0; i < list.documents.length; i++){
+      if(idReferencepoints.contains(list.documents[i].$id)){
+        res.add(ReferencePoint.fromJsonfast(list.documents[i].data , list.documents[i].$id , _listAccesspoint));
       }
     }
+
+    print("res length ${res.length}");
 
     return WifiLayer(
       referencePoints: res,
@@ -229,6 +256,7 @@ class WifiLayer {
           ]);
       return fromJson(result.documents[0].data);
     } catch (e) {
+      print("inside wifilayer getter");
       print(e);
       return null;
     }
@@ -281,15 +309,15 @@ class WifiLayerGetter{
     //String test = await DefaultAssetBundle.of(context).loadString("asset/maps/geo.json");
     //WifiLayer.getJsontoFunktionAndCall(test);
     //WifiLayer.createReferencePoints(wifiLayer);
-    try{
-      wifiLayer = (await WifiLayer.getWifiLayer("mar", 6))!;
+    //try{
+      wifiLayer = (await WifiLayer.getWifiLayer("mar", 0))!;
       wifiLayerDowaloaded = true;
       return true;
-    }catch(e){
-      print(e);
+    //}catch(e){
+    //  print(e);
       wifiLayerDowaloaded = false;
       return false;
-    }
+    //}
 
   }
 }

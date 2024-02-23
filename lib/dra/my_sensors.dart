@@ -121,7 +121,7 @@ class MySensors {
       _absoluteOrientation.setValues(event.yaw, event.pitch, event.roll);
       //print("absolte orientation yaw:${event.yaw/2/pi*360},pitch:${event.pitch/2/pi*360},roll:yaw:${event.roll/2/pi*360}");
 
-      yaw = (event.yaw / 2 / pi * 360);
+      yaw = ((event.yaw/-2/pi*360) + 5) % 360;
       pitch = (event.pitch / 2 / pi * 360).round();
       roll = (event.roll / 2 / pi * 360).round();
       heading = yaw;

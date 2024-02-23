@@ -49,6 +49,8 @@ dependencies:
   geojson_vi: ^2.2.1
   geodart: ^0.3.2
   rbush: ^1.1.1
+  flutter_compass: ^0.8.0
+  compassx: ^0.0.2
 
 
 

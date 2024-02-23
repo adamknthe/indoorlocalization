@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:compassx/compassx.dart';
 import 'package:environment_sensors/environment_sensors.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_compass/flutter_compass.dart';
 import 'package:flutter_sensors/flutter_sensors.dart' as sens;
 import 'package:geolocator/geolocator.dart' as geo;
 import 'package:indoornavigation/dra/dra.dart';
@@ -38,9 +40,12 @@ class _SensorPageState extends State<SensorPage> {
     timer =
         Timer.periodic(const Duration(milliseconds: 200), _updateDataSource);
   }
+  bool setFile = false;
 
   void _updateDataSource(Timer timer) {
+
       chartData!.add(_ChartData(i, _userAccelerometerValues[0], _userAccelerometerValues[0], _userAccelerometerValues[0]));
+
       if (chartData!.length > 50) {
         chartData!.removeAt(0);
         _chartSeriesController?.updateDataSource(
@@ -76,8 +81,11 @@ class _SensorPageState extends State<SensorPage> {
           addedDataIndexes: <int>[chartData2!.length - 1],
         );
       }
+
       count = count + 1;
-      fileuseracc.writeAsString("$count,${userPosition?.latitude},${userPosition?.longitude},${positionGps?.latitude},${positionGps?.longitude},$yaw\n", mode: FileMode.append);
+      if(setFile == true){
+        fileuseracc.writeAsString("$count,${userPosition?.latitude},${userPosition?.longitude},${positionGps?.latitude},${positionGps?.longitude},$heading_from_compass\n", mode: FileMode.append);
+      }
 
   }
 
@@ -86,6 +94,7 @@ class _SensorPageState extends State<SensorPage> {
   int pitch = 0;
   int roll = 0;
   static double pressure = 0;
+  static double heading_from_compass = 0.0;
 
   int i = 0;
   geo.Position? userPosition = null;
@@ -195,6 +204,7 @@ class _SensorPageState extends State<SensorPage> {
   Future<void> SetupFile() async {
     fileuseracc = await localData.createFile("position vergleich gps and dead reckoning");
     fileuseracc.writeAsString("counter,latDra,longDra,latGps,longGps,yaw\n", mode: FileMode.append);
+    setFile = true;
   }
 
   @override
@@ -223,7 +233,9 @@ class _SensorPageState extends State<SensorPage> {
     if(timer != null){
       timer.cancel();
     }
+    setState(() {
 
+    });
   }
 
   SfCartesianChart _buildLiveLineChart() {
@@ -334,7 +346,7 @@ class _SensorPageState extends State<SensorPage> {
     motion.motionSensors.absoluteOrientation.listen((motion.AbsoluteOrientationEvent event) {
         _absoluteOrientation.setValues(event.yaw, event.pitch, event.roll);
         //print("absolte orientation yaw:${event.yaw/2/pi*360},pitch:${event.pitch/2/pi*360},roll:yaw:${event.roll/2/pi*360}");
-        yaw = (event.yaw/2/pi*360) % 360;
+        yaw = ((event.yaw/-2/pi*360))% 360 ;
         pitch = (event.pitch/2/pi*360).round();
         roll = (event.roll/2/pi*360).round();
     });
@@ -399,7 +411,7 @@ class _SensorPageState extends State<SensorPage> {
                 steps = StepDetection.steps;
                 if(userPosition != null){
                   print(yaw);
-                  userPosition = DRA.nextPosition(yaw, 0.75, userPosition!);
+                  userPosition = DRA.nextPosition(heading_from_compass, 1.08, userPosition!);
                 }
               }
 
@@ -425,9 +437,35 @@ class _SensorPageState extends State<SensorPage> {
         )
     );
     _streamSubscriptions.add(
+        magnetometerEventStream(samplingPeriod: SensorInterval.fastestInterval).listen(
+              (MagnetometerEvent event) {
+                print("${event.accuracy}");
+                _magnetometerValues = <double>[event.x, event.y, event.z];
+          },
+          onError: (error) {
+            // Logic to handle error
+            // Needed for Android in case sensor is not available
+          },
+          cancelOnError: true,
+        )
+    );
+    _streamSubscriptions.add(
         EnvironmentSensors().pressure.listen((event) {
           pressure = event;
+
         })
+    );
+    _streamSubscriptions.add(
+      FlutterCompass.events!.listen((event) {
+        print(event.heading);
+        print(event.accuracy);
+
+        heading_from_compass = (event.heading!) % 360;
+        /*if(positionGps!.heading < heading_from_compass-15 || positionGps!.heading < heading_from_compass-15 ){
+          print("heading wya to off\n heading is :$heading_from_compass \n should: ${positionGps!.heading} ");
+          print(positionGps!.headingAccuracy);
+        }*/
+      })
     );
     _streamSubscriptions.add(
         geo.Geolocator.getPositionStream(locationSettings: locationSettings)
@@ -480,9 +518,6 @@ class _SensorPageState extends State<SensorPage> {
             GestureDetector(
               onTap: (){
                 dispose();
-                setState(() {
-                  steps = 0;
-                });
               },
               child: Container(
                 color: Colors.green,
@@ -493,7 +528,7 @@ class _SensorPageState extends State<SensorPage> {
             Container(
               color: Colors.green,
               height: 100,
-              child: Text("yaw: $yaw, pitch: $pitch, roll: $roll"),
+              child: Text("yaw: $heading_from_compass, pitch: $pitch, roll: $roll"),
             ),
             GestureDetector(
               onTap: (){

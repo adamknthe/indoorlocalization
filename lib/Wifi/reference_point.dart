@@ -56,6 +56,38 @@ class ReferencePoint{
     );
   }
 
+  static ReferencePoint fromJsonfast(Map<String, dynamic> json, String docId, List<AccessPointMeasurement> listAccessPoints){
+     //65be3aebb80743fc7013 der ist es -> 65b26e14d9ce652e7c49 lat 52.516289398667 long 13.322834482242
+    List<String> ids1 = [];
+    if(json["accespointsNew"] != null){
+      ids1 = List.generate(json["accespointsNew"].length, (index) => json["accespointsNew"][index].toString());
+    }
+    List<String> ids = [];
+    if(json["accespointsNew"] != null){
+      ids = List.generate(json["accespointsNew"].length, (index) => json["accespointsNew"][index].toString());
+    }
+    List<String> accesspointsIds = ids;
+    List<String> accesspointsNewIds = ids1;
+    List<AccessPointMeasurement> res = [];
+    List<AccessPointMeasurement> res1 = [];
+    for(int i = 0; i < listAccessPoints.length; i++){
+      if(accesspointsIds.contains(listAccessPoints[i].documentId)){
+        res.add(listAccessPoints[i]);
+      }
+      if(accesspointsNewIds.contains(listAccessPoints[i].documentId)){
+        res1.add(listAccessPoints[i]);
+      }
+    }
+
+    return ReferencePoint(
+        documentId: docId,
+        latitude: json["latitutude"],
+        longitude: json["longitude"],
+        accesspoints: res,
+        accesspointsNew: res1,
+    );
+  }
+
   static Future<ReferencePoint?> createReferencePoint({required double latitude,required double longitude, required List<AccessPointMeasurement> accesspoints, required List<AccessPointMeasurement> accesspointsNew})async{
     try{
       Document document= await Runtime.database.createDocument(
@@ -81,6 +113,7 @@ class ReferencePoint{
 
       return ReferencePoint.fromJson(document.data, document.$id);
     }catch(e){
+
       print(e);
       return null;
     }

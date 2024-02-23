@@ -57,6 +57,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.17.2"
+  compassx:
+    dependency: "direct main"
+    description:
+      name: compassx
+      sha256: d91071da81f09343c521de3c3ed1e854cc20a25856577321c8f67e6836ad69b6
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.0.2"
   cookie_jar:
     dependency: transitive
     description:
@@ -158,6 +166,14 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  flutter_compass:
+    dependency: "direct main"
+    description:
+      name: flutter_compass
+      sha256: be642484f9f6975c1c6edff568281b001f2f1e604de27ecea18d97eebbdef22f
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.8.0"
   flutter_lints:
     dependency: "direct dev"
     description:

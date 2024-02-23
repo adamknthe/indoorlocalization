@@ -18,8 +18,8 @@ import '../dra/positionalgorithm/positionEstimation.dart';
 
 class MapPage extends StatefulWidget {
   static int selectedfloor = 0;
-
-  MapPage({super.key});
+  WifiLayer wifiLayer;
+  MapPage({super.key, required this.wifiLayer });
 
   @override
   State<MapPage> createState() => _MapPageState();
@@ -101,6 +101,18 @@ class _MapPageState extends State<MapPage> {
     point: LatLng(0, 0)
   );
 
+  void createMarkerForreferencePoints(){
+    for(int i = 0; i < widget.wifiLayer.referencePoints.length; i++){
+      Marker marker = Marker(
+          child: Icon(
+              Icons.add_circle_outline
+          ),
+          point: LatLng(this.widget.wifiLayer.referencePoints[i].latitude, this.widget.wifiLayer.referencePoints[i].longitude)
+      );
+      markers.add(marker);
+    }
+  }
+
   void startStream(){
     //Stream.periodic(Duration(seconds: 3),(computationCount) {
     //  print("map update1");
@@ -141,14 +153,17 @@ class _MapPageState extends State<MapPage> {
     super.initState();
     getMap(0, "mar");
     getWholebuilding("mar");
-    startStream();
+    //startStream();
+    createMarkerForreferencePoints();
+    print("marker legth ${markers.length}");
   }
   int aktivefloor = 0;
 
   @override
   Widget build(BuildContext context) {
-
     if (_listMaps.length >= 1) {
+
+
       String geoJson = _listMaps.first.GeoJson;
       print(_listMaps.length);
       for (int i = 0; i < _listMaps.length; i++) {
@@ -158,6 +173,7 @@ class _MapPageState extends State<MapPage> {
       }
       geoJsonParser.polygons.clear();
       geoJsonParser.parseGeoJsonAsString(geoJson);
+
       return SafeArea(
           child: Scaffold(
         appBar: AppBar(
@@ -178,8 +194,8 @@ class _MapPageState extends State<MapPage> {
                   center: LatLng(52.51662390833064, 13.323514830215117),
                   zoom: 19.0,
                   minZoom: 10,
-                  maxZoom: 20,
-                  initialRotation: -25,
+                  maxZoom: 24,
+                  initialRotation: 68,
 
               ),
               children: [
@@ -188,7 +204,7 @@ class _MapPageState extends State<MapPage> {
                   /*urlTemplate: 'asset/mar_eg/{z}/{x}/{y}.png',
                       tileProvider: AssetTileProvider(),*/
                   minZoom: 9.0,
-                  maxZoom: 21.0,
+                  maxZoom: 25.0,
                 ),
                 PolygonLayer(polygons: geoJsonParser.polygons),
                 PolylineLayer(polylines: geoJsonParser.polylines),

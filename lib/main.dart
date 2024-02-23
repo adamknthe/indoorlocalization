@@ -50,18 +50,23 @@ class _MyHomePageState extends State<MyHomePage> {
   late Position location;
   File fileuseracc = File("");
   //static bool wifiLayerDowaloaded = false;
+  WifiLayerGetter wifiLayerGetter = WifiLayerGetter();
+  late WifiLayer wifiLayer;
 
   @override
   void initState() {
     Runtime.initialize();
     super.initState();
 
-    //WifiLayerGetter.getFirstLayer().then((value){
-    //  print("Wifilayer is imported: $value");
-    //});
+
+    WifiLayerGetter.getFirstLayer().then((value){
+      wifiLayer = WifiLayerGetter.wifiLayer!;
+      print("Wifilayer is imported: $value");
+
+    });
     //test();
 
-   //LevelCalculator.checkSensorsAvaileble();
+   LevelCalculator.checkSensorsAvaileble();
    WifiMeasurements.SetupWifi(context);
    //startlisten();
    SetupPosition();
@@ -177,7 +182,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   onTap: () {
                     Navigator.push(context, MaterialPageRoute(
                       builder: (context) {
-                          return MapPage();
+                          return MapPage(wifiLayer: wifiLayer);
                       },
                     ));
                   },
