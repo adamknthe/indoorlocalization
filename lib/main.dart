@@ -57,8 +57,6 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     Runtime.initialize();
     super.initState();
-
-
     WifiLayerGetter.getFirstLayer().then((value){
       wifiLayer = WifiLayerGetter.wifiLayer!;
       print("Wifilayer is imported: $value");
@@ -67,11 +65,11 @@ class _MyHomePageState extends State<MyHomePage> {
     //test();
 
    LevelCalculator.checkSensorsAvaileble();
-   WifiMeasurements.SetupWifi(context);
+   //WifiMeasurements.SetupWifi(context);
    //startlisten();
-   SetupPosition();
+   //SetupPosition();
    //SetupSensors().then((value){
-   //  print("Sensors is ready: $value");
+     //print("Sensors is ready: $value");
    //});
    //PositionEstimation.startTimer();
    //SetupFile();
@@ -144,7 +142,7 @@ class _MyHomePageState extends State<MyHomePage> {
   ///Start Sensors and StepDetection
   Future<bool> SetupSensors() async{
     MySensors mySensors = MySensors();
-    return mySensors.StartSensorsAndPosition();
+    return mySensors.StartSensorsAndPosition(context);
   }
 
   final myControllerx = TextEditingController();

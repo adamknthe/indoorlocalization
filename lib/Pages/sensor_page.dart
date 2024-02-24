@@ -349,6 +349,7 @@ class _SensorPageState extends State<SensorPage> {
         yaw = ((event.yaw/-2/pi*360))% 360 ;
         pitch = (event.pitch/2/pi*360).round();
         roll = (event.roll/2/pi*360).round();
+        print("from motion sensors$yaw");
     });
     _streamSubscriptions.add(
         userAccelerometerEventStream(samplingPeriod: SensorInterval.uiInterval).listen(
@@ -439,9 +440,11 @@ class _SensorPageState extends State<SensorPage> {
     _streamSubscriptions.add(
         magnetometerEventStream(samplingPeriod: SensorInterval.fastestInterval).listen(
               (MagnetometerEvent event) {
-                print("${event.accuracy}");
                 _magnetometerValues = <double>[event.x, event.y, event.z];
-          },
+
+                //int head = Calculations().updateHeading(_gyroscopeValues[0], _gyroscopeValues[1], _gyroscopeValues[2], _accelerometerValues[0], _accelerometerValues[1], _accelerometerValues[2], _magnetometerValues[0], _magnetometerValues[1], _magnetometerValues[2], DateTime.now().millisecondsSinceEpoch);
+                //print("from top techboy: $head");
+                },
           onError: (error) {
             // Logic to handle error
             // Needed for Android in case sensor is not available
@@ -457,10 +460,11 @@ class _SensorPageState extends State<SensorPage> {
     );
     _streamSubscriptions.add(
       FlutterCompass.events!.listen((event) {
-        print(event.heading);
-        print(event.accuracy);
+        //print(event.heading);
+        //print(event.accuracy);
 
         heading_from_compass = (event.heading!) % 360;
+        print("fluttercompas$heading_from_compass");
         /*if(positionGps!.heading < heading_from_compass-15 || positionGps!.heading < heading_from_compass-15 ){
           print("heading wya to off\n heading is :$heading_from_compass \n should: ${positionGps!.heading} ");
           print(positionGps!.headingAccuracy);

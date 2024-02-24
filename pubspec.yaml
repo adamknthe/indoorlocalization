@@ -83,6 +83,7 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
+    - asset/images/calivration.gif
     - asset/mar_eg/12/2199/1343.png
     - asset/mar_eg/12/2199/1343.png
     - asset/mar_eg/13/4399/2686.png

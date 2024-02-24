@@ -23,9 +23,17 @@ class MapPage extends StatefulWidget {
 
   @override
   State<MapPage> createState() => _MapPageState();
+
+
+
+
+
 }
 
 class _MapPageState extends State<MapPage> {
+
+  int accuracy = 0;
+  static bool showing = false;
   LatLng position = LatLng(0, 0);
   List<MapLoader> _listMaps = [];
   GeoJsonParser geoJsonParser = GeoJsonParser(
@@ -55,12 +63,42 @@ class _MapPageState extends State<MapPage> {
     },
   );
 
+
+
   bool myFilterFunction(Map<String, dynamic> properties) {
     if (properties['name'].toString().contains('raum')) {
       return false;
     } else {
       return true;
     }
+  }
+
+  void showCalibrationDialog() {
+    showDialog<String>(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+        title: const Text('Accuracy too Low'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Your phone is not calibrated please calibrate it'),
+            Image.asset(
+              "asset/images/calivration.gif",
+            ),
+            Text("Accuracy: ${MySensors.magnetometer_accuray}")
+          ],
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () {
+              showing = false;
+              Navigator.pop(context, 'OK');
+            },
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   void onTapMarkerFunction(Map<String, dynamic> map) {
@@ -107,8 +145,7 @@ class _MapPageState extends State<MapPage> {
           child: Icon(
               Icons.add_circle_outline
           ),
-          point: LatLng(this.widget.wifiLayer.referencePoints[i].latitude, this.widget.wifiLayer.referencePoints[i].longitude)
-      );
+          point: LatLng(this.widget.wifiLayer.referencePoints[i].latitude, this.widget.wifiLayer.referencePoints[i].longitude));
       markers.add(marker);
     }
   }
@@ -127,24 +164,49 @@ class _MapPageState extends State<MapPage> {
     //},);
     Timer.periodic(Duration(seconds: 3), (timer) {
       print("map update1");
-      setState(() {
-        position = LatLng(PositionEstimation.estimatedPosi.y, PositionEstimation.estimatedPosi.x);
-        print(position);
-        markers.add(Marker(
-          child: Icon(
+      accuracy = MySensors.magnetometer_accuray;
+      if(MySensors.magnetometer_accuray != 3 && showing == false){
+
+        showing = true;
+        setState(() {
+          accuracy = MySensors.magnetometer_accuray;
+        });
+
+        showCalibrationDialog();
+      }else if(accuracy == 3 && showing == true){
+        Navigator.pop(context);
+        startStream();
+      }else if(accuracy != 3 && showing == true){
+        setState(() {
+          accuracy = MySensors.magnetometer_accuray;
+        });
+      }
+      if(showing != false){
+        setState(() {
+          position = LatLng(PositionEstimation.estimatedPosi.y, PositionEstimation.estimatedPosi.x);
+          print(position);
+          markers.add(Marker(
+            child: Icon(
               Icons.accessibility,
 
-          ),
-          point: position,
+            ),
+            point: position,
 
-        ));
-        print("lengthmarkes:${markers.length}");
-      });
+          ));
+          print("lengthmarkes:${markers.length}");
+        });
+      }
+
     });
   }
 
   MapController mapController = MapController(
   );
+
+  Future<bool> SetupSensors() async{
+    MySensors mySensors = MySensors();
+    return mySensors.StartSensorsAndPosition(context);
+  }
 
   @override
   void initState() {
@@ -153,10 +215,13 @@ class _MapPageState extends State<MapPage> {
     super.initState();
     getMap(0, "mar");
     getWholebuilding("mar");
-    //startStream();
+    SetupSensors().then((value){
+      print("Sensors is ready: $value");
+    });
+    startStream();
     createMarkerForreferencePoints();
-    print("marker legth ${markers.length}");
   }
+
   int aktivefloor = 0;
 
   @override
@@ -235,6 +300,7 @@ class _MapPageState extends State<MapPage> {
                       "Scanned wifi${PositionEstimation.measurement.length}\n"
                       "walked distance: ${PositionEstimation.walkedDistance} Stepstaken:${PositionEstimation.steps}\n"
                       "heading ${MySensors.heading}\n"
+                      "Magn Acuracy ${MySensors.magnetometer_accuray}\n"
 
                     ),
                   )

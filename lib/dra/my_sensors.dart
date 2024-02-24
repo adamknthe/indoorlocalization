@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:environment_sensors/environment_sensors.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_compass/flutter_compass.dart';
 import 'package:flutter_sensors/flutter_sensors.dart' as sens;
 import 'package:geolocator/geolocator.dart' as geo;
 import 'package:indoornavigation/dra/dra.dart';
@@ -15,6 +16,7 @@ import 'dart:math';
 import 'package:vector_math/vector_math_64.dart' hide Colors;
 import 'package:motion_sensors/motion_sensors.dart' as motion;
 
+import '../Pages/map_page.dart';
 import '../dra/step_detection.dart';
 
 class MySensors {
@@ -33,6 +35,8 @@ class MySensors {
   int pitch = 0;
   int roll = 0;
   static double pressure = 0;
+  static double heading_from_compass = 0.0;
+  static int magnetometer_accuray = 0;
 
   int i = 0;
   static geo.Position userPosition = geo.Position(
@@ -89,7 +93,7 @@ class MySensors {
     fileuseracc.writeAsString("stockUndPos,wifilist\n", mode: FileMode.append);
   }
 
-  Future<bool> StartSensorsAndPosition() async {
+  Future<bool> StartSensorsAndPosition(BuildContext context) async {
     bool allSenorsready = false;
     motion.motionSensors.magnetometer.listen((motion.MagnetometerEvent event) {
       _magnetometer.setValues(event.x, event.y, event.z);
@@ -144,7 +148,8 @@ class MySensors {
         if (StepDetection.steps > steps) {
           steps = StepDetection.steps;
           userPosition = geo.Position(longitude: PositionEstimation.estimatedPosi.x, latitude: PositionEstimation.estimatedPosi.y, timestamp: DateTime.now(), accuracy: 30, altitude: 0, altitudeAccuracy: 0, heading: 0, headingAccuracy: 0, speed: 0, speedAccuracy: 0);
-          userPosition = DRA.nextPosition(yaw, 0.65, userPosition);
+          userPosition = DRA.nextPosition(heading_from_compass, 1.08, userPosition);
+
         }
       },
       onError: (error) {
@@ -168,7 +173,19 @@ class MySensors {
     _streamSubscriptions.add(EnvironmentSensors().pressure.listen((event) {
       pressure = event;
     }));
-
+    _streamSubscriptions.add(
+        magnetometerEventStream(samplingPeriod: SensorInterval.uiInterval).listen(
+              (MagnetometerEvent event) {
+              magnetometer_accuray = event.accuracy.toInt();
+              //print("inside stream: $magnetometer_accuray");
+          },
+          onError: (error) {
+            // Logic to handle error
+            // Needed for Android in case sensor is not available
+          },
+          cancelOnError: true,
+        )
+    );
     /*
         _streamSubscriptions.add(
             magnetometerEventStream(samplingPeriod: SensorInterval.fastestInterval).listen(
@@ -183,7 +200,18 @@ class MySensors {
           )
         );*/
     //timer = Timer.periodic(const Duration(milliseconds: 200), _updateDataSource);
+    _streamSubscriptions.add(
+        FlutterCompass.events!.listen((event) {
+          //print(event.heading);
+          //print(event.accuracy);
 
+          heading_from_compass = (event.heading!) % 360;
+          /*if(positionGps!.heading < heading_from_compass-15 || positionGps!.heading < heading_from_compass-15 ){
+          print("heading wya to off\n heading is :$heading_from_compass \n should: ${positionGps!.heading} ");
+          print(positionGps!.headingAccuracy);
+        }*/
+        })
+    );
     _streamSubscriptions.add(
         geo.Geolocator.getPositionStream(locationSettings: locationSettings)
             .listen((event) {
