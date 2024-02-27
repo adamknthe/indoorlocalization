@@ -57,7 +57,7 @@ class ReferencePoint{
   }
 
   static ReferencePoint fromJsonfast(Map<String, dynamic> json, String docId, List<AccessPointMeasurement> listAccessPoints){
-     //65be3aebb80743fc7013 der ist es -> 65b26e14d9ce652e7c49 lat 52.516289398667 long 13.322834482242
+
     List<String> ids1 = [];
     if(json["accespointsNew"] != null){
       ids1 = List.generate(json["accespointsNew"].length, (index) => json["accespointsNew"][index].toString());
@@ -195,6 +195,7 @@ class ReferencePoint{
        }
      }
 
+     //TODO change the update stuff
      await updateReferencePoint().then((value) => print("updated"));
      print(accesspoints.length);
      for(int i = 0; i < accesspoints.length; i++){

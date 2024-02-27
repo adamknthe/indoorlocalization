@@ -38,6 +38,10 @@ class MySensors {
   static double heading_from_compass = 0.0;
   static int magnetometer_accuray = 0;
 
+  StreamController<int> controller = StreamController<int>.broadcast();
+
+  static late Stream acuracyStream;
+
   int i = 0;
   static geo.Position userPosition = geo.Position(
       longitude: 0,
@@ -95,6 +99,10 @@ class MySensors {
 
   Future<bool> StartSensorsAndPosition(BuildContext context) async {
     bool allSenorsready = false;
+
+
+    acuracyStream = controller.stream;
+
     motion.motionSensors.magnetometer.listen((motion.MagnetometerEvent event) {
       _magnetometer.setValues(event.x, event.y, event.z);
       var matrix =
@@ -178,6 +186,7 @@ class MySensors {
               (MagnetometerEvent event) {
               magnetometer_accuray = event.accuracy.toInt();
               //print("inside stream: $magnetometer_accuray");
+              controller.add(magnetometer_accuray);
           },
           onError: (error) {
             // Logic to handle error

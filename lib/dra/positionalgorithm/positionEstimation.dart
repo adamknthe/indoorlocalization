@@ -51,14 +51,22 @@ class PositionEstimation {
   static late Timer updateTick;
   static int floor = 0;
   static bool drapositionused = false;
+  static int uploadedrefsAccespoints = 0;
+  static String isstillSame = "";
+
+  static StreamController<Posi> controller = StreamController<Posi>.broadcast();
+  static late Stream<Posi> estimatedPositionStream;
 
   static Future<void> startTimer() async {
+    estimatedPositionStream = controller.stream;
+    print("is broadcast :${estimatedPositionStream.isBroadcast}");
     MySensors.userPosition = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
     MySensors.positionGps = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
     getEverything();
     updateTick = Timer.periodic(Duration(seconds: 2), (timer) {
       getEverything();
       print("in timer ${estimatedPosi.toString()}");
+      controller.add(estimatedPosi);
       if (wifiLayer != null) {
         print("Wifi measured # of measured : ${WifiMeasurements.accespoints.length}");
         searchWifiFix(wifiLayer!, measurement);
@@ -69,6 +77,7 @@ class PositionEstimation {
     });
     print("started timer");
     getPositionWithoutWifi();
+
   }
 
   static void getEverything() {
@@ -108,6 +117,7 @@ class PositionEstimation {
     if (pos.length > 0) {
       ReferencePoint ref = wifiLayer.referencePoints.firstWhere((element) => element.documentId == pos[0].docId);
       estimatedPosi = Posi(x: ref.longitude, y: ref.latitude);
+      controller.add(estimatedPosi);
     }
 
     updateRef();
@@ -117,16 +127,21 @@ class PositionEstimation {
   static Future<void> updateRef() async {
     getPositionWithoutWifi();
     String reftoUpdate = docidNearestRef(wifiLayer!.referencePoints, estimatedPosi);
-
-    ReferencePoint ref = wifiLayer!.referencePoints.firstWhere((element) => element.documentId == reftoUpdate);
-    if(Geolocator.distanceBetween(estimatedPosi.y, estimatedPosi.x, ref.latitude , ref.longitude) > 2.1){
-      print("too far ${Geolocator.distanceBetween(estimatedPosi.y, estimatedPosi.x, ref.latitude , ref.longitude)}");
-      getPositionWithoutWifi();
-      return;
-    }else{
-      List<WiFiAccessPoint> accespoints = measurement;
-      SetNewAccespoints(ref, accespoints);
+    if(isstillSame != reftoUpdate){
+      ReferencePoint ref = wifiLayer!.referencePoints.firstWhere((element) => element.documentId == reftoUpdate);
+      if(Geolocator.distanceBetween(estimatedPosi.y, estimatedPosi.x, ref.latitude , ref.longitude) > 2.1){
+        print("too far ${Geolocator.distanceBetween(estimatedPosi.y, estimatedPosi.x, ref.latitude , ref.longitude)}");
+        getPositionWithoutWifi();
+        return;
+      }else{
+        List<WiFiAccessPoint> accespoints = measurement;
+        SetNewAccespoints(ref, accespoints);
+        uploadedrefsAccespoints++;
+        print("uploaded Ref:${ref.documentId}");
+      }
+      isstillSame = reftoUpdate;
     }
+
 
   }
 
@@ -138,7 +153,7 @@ class PositionEstimation {
       reference.accesspoints.forEach((ap) {
         accespoints.forEach((apm) {
           if (ap.bssid == apm.bssid) {
-            int error = sqrt(pow((ap.level - apm.level), 2)).round();
+            int error = sqrt(pow((ap.level - apm.level), 2)).round(); //euclidean distance 1D
             countoverlap++;
             allError = allError + error;
           }
@@ -212,10 +227,13 @@ class PositionEstimation {
       if (!referencePoint.accesspoints.contains(accespoints[i])) {
         AccessPointMeasurement? accessPointMeasurement =
             await AccessPointMeasurement.createAccessPointMeasurement(
+                referenceId: referencePoint.documentId,
+                isKnown: false,
                 ssid: accespoints[i].ssid,
                 bssid: accespoints[i].bssid,
                 level: accespoints[i].level,
                 is80211mcResponder: accespoints[i].is80211mcResponder);
+
         if (accessPointMeasurement != null) {
           referencePoint.accesspointsNew.add(AccessPointMeasurement(
               ssid: accessPointMeasurement.ssid,
@@ -225,12 +243,13 @@ class PositionEstimation {
               documentId: accessPointMeasurement.documentId,
               frequency: accespoints[i].frequency,
               capabilities: accespoints[i].capabilities,
-              standard: accespoints[i].standard));
+              standard: accespoints[i].standard,
+              referenceId: referencePoint.documentId, isKnown: false));
         }
+
       }
     }
-    print("reference point is updated");
-    referencePoint.updateReferencePoint();
+    print("reference point is created");
   }
 
   static void exceute() {
@@ -254,10 +273,6 @@ class PositionEstimation {
     String docidRef = tree.knn(posi.x, posi.y, 1)[0].documentId;
     return docidRef;
   }
-
-
-
-
 
 }
 

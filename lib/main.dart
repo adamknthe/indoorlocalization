@@ -18,6 +18,7 @@ import 'dart:io';
 import 'Pages/map_page.dart';
 import 'package:indoornavigation/Util/localData.dart';
 
+import 'Util/Mercator.dart';
 import 'constants/sizes.dart';
 
 void main() {
@@ -25,6 +26,8 @@ void main() {
 }
 
 class MyApp extends StatelessWidget {
+
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -65,13 +68,13 @@ class _MyHomePageState extends State<MyHomePage> {
     //test();
 
    LevelCalculator.checkSensorsAvaileble();
-   //WifiMeasurements.SetupWifi(context);
-   //startlisten();
-   //SetupPosition();
-   //SetupSensors().then((value){
-     //print("Sensors is ready: $value");
-   //});
-   //PositionEstimation.startTimer();
+   WifiMeasurements.SetupWifi(context);
+   startlisten();
+   SetupPosition();
+   SetupSensors().then((value){
+     print("Sensors is ready: $value");
+   });
+   PositionEstimation.startTimer();
    //SetupFile();
 
   }
@@ -148,6 +151,34 @@ class _MyHomePageState extends State<MyHomePage> {
   final myControllerx = TextEditingController();
   final myControllery = TextEditingController();
 
+  Future<void> _showMyDialog() async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false, // user must tap button!
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('WifiLayer not imported'),
+          content: const SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                Text('This is a demo alert dialog.'),
+                Text('Would you like to approve of this message?'),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Ok'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     Sizes.initialize(context);
@@ -178,11 +209,13 @@ class _MyHomePageState extends State<MyHomePage> {
                 ),
                 GestureDetector(
                   onTap: () {
+                    if(wifiLayer != null){
                     Navigator.push(context, MaterialPageRoute(
                       builder: (context) {
-                          return MapPage(wifiLayer: wifiLayer);
-                      },
-                    ));
+                            return MapPage(wifiLayer: wifiLayer);}));
+                      }else{
+                            _showMyDialog();
+                      }
                   },
                   child: Container(
                     color: Colors.cyanAccent,

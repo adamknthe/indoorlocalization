@@ -10,7 +10,7 @@ class DRA{
 
 
   static Position nextPosition(double heading, double stepLength, Position oldPosition){
-    double latNew = oldPosition.latitude + Mercator.y2lat(stepLength) * cos(radians(heading));//TODO
+    double latNew = oldPosition.latitude + Mercator.y2lat(stepLength) * cos(radians(heading));
     double longNew = oldPosition.longitude + Mercator.x2lng(stepLength) * sin(radians(heading));
 
 

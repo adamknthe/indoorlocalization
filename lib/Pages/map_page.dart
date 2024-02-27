@@ -34,7 +34,7 @@ class _MapPageState extends State<MapPage> {
 
   int accuracy = 0;
   static bool showing = false;
-  LatLng position = LatLng(0, 0);
+
   List<MapLoader> _listMaps = [];
   GeoJsonParser geoJsonParser = GeoJsonParser(
     defaultMarkerColor: Colors.red,
@@ -72,32 +72,57 @@ class _MapPageState extends State<MapPage> {
       return true;
     }
   }
+  late StreamSubscription subscription;
+
+  void cancelstream(){
+    subscription.cancel();
+  }
 
   void showCalibrationDialog() {
     showDialog<String>(
       context: context,
-      builder: (BuildContext context) => AlertDialog(
-        title: const Text('Accuracy too Low'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Your phone is not calibrated please calibrate it'),
-            Image.asset(
-              "asset/images/calivration.gif",
-            ),
-            Text("Accuracy: ${MySensors.magnetometer_accuray}")
-          ],
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () {
-              showing = false;
-              Navigator.pop(context, 'OK');
-            },
-            child: const Text('OK'),
+      builder: (BuildContext context) {
+        int accur = accuracy;
+         subscription = MySensors.acuracyStream.listen((event) {
+          if(event > accur){
+            setState(() {
+
+            });
+          }
+          if(event == 3){
+            cancelstream();
+            Navigator.pop(context);
+            setState(() {
+
+            });
+          }
+        });
+
+
+
+        return AlertDialog(
+          title: const Text('Accuracy too Low'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Your phone is not calibrated please calibrate it'),
+              Image.asset(
+                "asset/images/calivration.gif",
+              ),
+              Text("Accuracy: ${accur})}")
+            ],
           ),
-        ],
-      ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                showing = false;
+                Navigator.pop(context, 'OK');
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -128,15 +153,12 @@ class _MapPageState extends State<MapPage> {
     return true;
   }
 
-
-  StreamSubscription<Posi> x = Stream.value(PositionEstimation.estimatedPosi).listen((event) {print(event.y);});
-
   List<Marker> markers = [];
   Marker marker = Marker(
     child: Icon(
         Icons.accessibility
     ),
-    point: LatLng(0, 0)
+    point: LatLng(0,0)
   );
 
   void createMarkerForreferencePoints(){
@@ -151,51 +173,43 @@ class _MapPageState extends State<MapPage> {
   }
 
   void startStream(){
-    //Stream.periodic(Duration(seconds: 3),(computationCount) {
-    //  print("map update1");
-    //  x.onData((data) {print("Started stream $data");
-    //  setState(() {
-    //    print("map update2");
-    //    position = LatLng(data.y, data.x);
-    //    print(data);
-    //  });
-    //  });
-    //
-    //},);
-    Timer.periodic(Duration(seconds: 3), (timer) {
-      print("map update1");
-      accuracy = MySensors.magnetometer_accuray;
+    MySensors.acuracyStream.listen((event) {
+      accuracy = event;
       if(MySensors.magnetometer_accuray != 3 && showing == false){
-
         showing = true;
         setState(() {
           accuracy = MySensors.magnetometer_accuray;
         });
-
         showCalibrationDialog();
-      }else if(accuracy == 3 && showing == true){
-        Navigator.pop(context);
-        startStream();
-      }else if(accuracy != 3 && showing == true){
-        setState(() {
-          accuracy = MySensors.magnetometer_accuray;
-        });
       }
-      if(showing != false){
+      setState(() {
+
+      });
+    });
+
+    PositionEstimation.estimatedPositionStream.listen((event) {print(event);});
+
+    PositionEstimation.estimatedPositionStream.listen((event) {
+      print("map update1");
+      print(marker.point);
+      if(showing == false){
         setState(() {
-          position = LatLng(PositionEstimation.estimatedPosi.y, PositionEstimation.estimatedPosi.x);
-          print(position);
-          markers.add(Marker(
-            child: Icon(
-              Icons.accessibility,
-
-            ),
-            point: position,
-
-          ));
+          LatLng position = LatLng(event.y, event.x);
+          print(event);
+          marker = Marker(
+              child: Icon(
+                  Icons.accessibility
+              ),
+              point: position
+          );
+          if(markers.length == 1){
+            markers.removeAt(0);
+          }
+          markers.add(marker);
           print("lengthmarkes:${markers.length}");
         });
       }
+      print(marker.point);
 
     });
   }
@@ -219,7 +233,9 @@ class _MapPageState extends State<MapPage> {
       print("Sensors is ready: $value");
     });
     startStream();
-    createMarkerForreferencePoints();
+    //createMarkerForreferencePoints();
+
+
   }
 
   int aktivefloor = 0;
@@ -294,13 +310,14 @@ class _MapPageState extends State<MapPage> {
                 children: [
                   Container(
                     child: Text(
-                      "$position\n"
+                      "${marker.point}\n"
                       "lat:${PositionEstimation.estimatedPosi.y},long:${PositionEstimation.estimatedPosi.x}\n"
                       "${WifiLayerGetter.wifiLayerDowaloaded}\n"
                       "Scanned wifi${PositionEstimation.measurement.length}\n"
                       "walked distance: ${PositionEstimation.walkedDistance} Stepstaken:${PositionEstimation.steps}\n"
                       "heading ${MySensors.heading}\n"
                       "Magn Acuracy ${MySensors.magnetometer_accuray}\n"
+                          "ref set with wifis:${PositionEstimation.uploadedrefsAccespoints}\n"
 
                     ),
                   )
