@@ -3,11 +3,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_geojson/flutter_map_geojson.dart';
+import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:indoornavigation/Pages/Widgets/floorselector.dart';
 import 'package:indoornavigation/Util/BuildingInfo.dart';
 import 'package:indoornavigation/Util/map_loader.dart';
 import 'package:indoornavigation/Wifi/wifi_layer.dart';
-import 'package:indoornavigation/constants/Constants.dart';
+import 'package:indoornavigation/Wifi/wifimeasurements.dart';
+import 'package:indoornavigation/constants/constants.dart';
 import 'package:indoornavigation/dra/my_sensors.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
@@ -15,6 +18,7 @@ import 'package:syncfusion_flutter_charts/charts.dart';
 import '../Util/posi.dart';
 import '../constants/sizes.dart';
 import '../dra/positionalgorithm/positionEstimation.dart';
+import 'Widgets/custom_slider_thumb.dart';
 
 class MapPage extends StatefulWidget {
   static int selectedfloor = 0;
@@ -24,16 +28,15 @@ class MapPage extends StatefulWidget {
   @override
   State<MapPage> createState() => _MapPageState();
 
-
-
-
-
 }
 
 class _MapPageState extends State<MapPage> {
 
+
   int accuracy = 0;
   static bool showing = false;
+  bool follow = true;
+  double zoom = 19;
 
   List<MapLoader> _listMaps = [];
   GeoJsonParser geoJsonParser = GeoJsonParser(
@@ -62,7 +65,7 @@ class _MapPageState extends State<MapPage> {
           color: Colors.lightGreenAccent);
     },
   );
-
+  late TextEditingController _controllerText;
 
 
   bool myFilterFunction(Map<String, dynamic> properties) {
@@ -73,6 +76,15 @@ class _MapPageState extends State<MapPage> {
     }
   }
   late StreamSubscription subscription;
+
+  late List<StreamSubscription> to_end_beforeReturn = [];
+
+  Future<void> cancelStreamsbeforeReturn() async {
+    print("subscritions aktive:${to_end_beforeReturn.length}");
+    for(int i = 0; i < to_end_beforeReturn.length; i++){
+      await to_end_beforeReturn[i].cancel();
+    }
+  }
 
   void cancelstream(){
     subscription.cancel();
@@ -85,6 +97,7 @@ class _MapPageState extends State<MapPage> {
         int accur = accuracy;
          subscription = MySensors.acuracyStream.listen((event) {
           if(event > accur){
+            MySensors.countingLegitimated = true;
             setState(() {
 
             });
@@ -173,23 +186,25 @@ class _MapPageState extends State<MapPage> {
   }
 
   void startStream(){
-    MySensors.acuracyStream.listen((event) {
-      accuracy = event;
-      if(MySensors.magnetometer_accuray != 3 && showing == false){
-        showing = true;
+    to_end_beforeReturn.add(
+      MySensors.acuracyStream.listen((event) {
+        accuracy = event;
+        if(MySensors.magnetometer_accuray != 3 && showing == false){
+          showing = true;
+          setState(() {
+            accuracy = MySensors.magnetometer_accuray;
+          });
+          showCalibrationDialog();
+          MySensors.countingLegitimated = false;
+        }
         setState(() {
-          accuracy = MySensors.magnetometer_accuray;
+
         });
-        showCalibrationDialog();
-      }
-      setState(() {
+      })
+    );
 
-      });
-    });
-
-    PositionEstimation.estimatedPositionStream.listen((event) {print(event);});
-
-    PositionEstimation.estimatedPositionStream.listen((event) {
+    to_end_beforeReturn.add(
+      PositionEstimation.estimatedPositionStream.listen((event) {
       print("map update1");
       print(marker.point);
       if(showing == false){
@@ -207,11 +222,16 @@ class _MapPageState extends State<MapPage> {
           }
           markers.add(marker);
           print("lengthmarkes:${markers.length}");
+          if(follow = true){
+            mapController.move(position, zoom);
+          }
+
         });
       }
       print(marker.point);
 
-    });
+    })
+    );
   }
 
   MapController mapController = MapController(
@@ -221,6 +241,9 @@ class _MapPageState extends State<MapPage> {
     MySensors mySensors = MySensors();
     return mySensors.StartSensorsAndPosition(context);
   }
+
+  final _streamController = StreamController<double>();
+  Stream<double> get onZoomChanged => _streamController.stream;
 
   @override
   void initState() {
@@ -234,8 +257,17 @@ class _MapPageState extends State<MapPage> {
     });
     startStream();
     //createMarkerForreferencePoints();
+    onZoomChanged.listen((event) {
+      zoom = event;
+    });
+    _controllerText = TextEditingController();
 
+  }
 
+  @override
+  void dispose() {
+    _streamController.close();
+    super.dispose();
   }
 
   int aktivefloor = 0;
@@ -243,10 +275,8 @@ class _MapPageState extends State<MapPage> {
   @override
   Widget build(BuildContext context) {
     if (_listMaps.length >= 1) {
-
-
       String geoJson = _listMaps.first.GeoJson;
-      print(_listMaps.length);
+      //print(_listMaps.length);
       for (int i = 0; i < _listMaps.length; i++) {
         if (_listMaps[i].floorNumber == BuildingInfo.aktiveFloor) {
           geoJson = _listMaps[i].GeoJson;
@@ -258,14 +288,13 @@ class _MapPageState extends State<MapPage> {
       return SafeArea(
           child: Scaffold(
         appBar: AppBar(
-          actions: [
-            GestureDetector(
-              onTap: () {
+            leading: IconButton(
+              icon: Icon(Icons.arrow_back),
+              onPressed: () async {
+                await cancelStreamsbeforeReturn();
                 Navigator.pop(context);
               },
-              child: Icon(Icons.ac_unit),
-            )
-          ],
+            ),
         ),
         body: Container(
           child: Stack(children: [
@@ -290,7 +319,7 @@ class _MapPageState extends State<MapPage> {
                 PolygonLayer(polygons: geoJsonParser.polygons),
                 PolylineLayer(polylines: geoJsonParser.polylines),
                 MarkerLayer(markers: geoJsonParser.markers),
-                MarkerLayer(markers: markers)
+                MarkerLayer(markers: markers),
               ],
             ),
             Column(
@@ -299,29 +328,91 @@ class _MapPageState extends State<MapPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    Floorseletor(-1, 6)
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Floorseletor(-1, 6),
+                        GestureDetector(
+                          onTap: (){
+                            if(follow) {
+
+                              follow = false;
+                              _showToast(context,"follow deactivated!");
+                            }else if(!follow){
+
+                              follow = true;
+                              _showToast(context,"follow activated!");
+
+                            }
+
+                          },
+                          child: Container(
+                            height: 50,
+                            width: 50,
+                            decoration: const BoxDecoration(
+                              color: lightGrey,
+                              borderRadius: BorderRadius.all(Radius.circular(20))
+
+                            ),
+                            margin: EdgeInsets.only(top: 20,right: Sizes.paddingRegular, bottom: Sizes.paddingBig-15 ),
+                            child: const Icon(
+                                Icons.navigation,
+                              color: white,
+                            ),
+                          ),
+                        )
+                      ],
+                    ),
                   ],
                 ),
               ],
             ),
             Container(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: [
-                  Container(
-                    child: Text(
-                      "${marker.point}\n"
-                      "lat:${PositionEstimation.estimatedPosi.y},long:${PositionEstimation.estimatedPosi.x}\n"
-                      "${WifiLayerGetter.wifiLayerDowaloaded}\n"
-                      "Scanned wifi${PositionEstimation.measurement.length}\n"
-                      "walked distance: ${PositionEstimation.walkedDistance} Stepstaken:${PositionEstimation.steps}\n"
-                      "heading ${MySensors.heading}\n"
-                      "Magn Acuracy ${MySensors.magnetometer_accuray}\n"
-                          "ref set with wifis:${PositionEstimation.uploadedrefsAccespoints}\n"
-
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    Container(
+                      margin: EdgeInsets.only(left: 20, right: 20, bottom: 100, top: 20),
+                      padding: EdgeInsets.only(left: 10,right: 10),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.all(Radius.circular(15)),
+                        color: white,
+                      ),
+                      child: TextField(
+                        onChanged: (data){
+                          print(data);
+                        },
+                        decoration: InputDecoration(
+                          prefixIcon: Icon(Icons.
+                          search),
+                          labelText: 'Search',
+                          border: InputBorder.none
+                        ),
+                        controller: _controllerText,
+                        style: TextStyle(
+                          fontSize: Sizes.textSizeRegular,
+                          color: Color(0xff000000),
+                        ),
+                      ),
                     ),
-                  )
-                ],
+                    Container(
+                      
+                      child: Text(
+                        "${marker.point}\n"
+                        "lat:${PositionEstimation.estimatedPosi.y},long:${PositionEstimation.estimatedPosi.x}\n"
+                        "${WifiLayerGetter.wifiLayerDowaloaded}\n"
+                        "Scanned wifi${WifiMeasurements.accespoints.length}\n"
+                        "walked distance: ${PositionEstimation.walkedDistance} Stepstaken:${PositionEstimation.steps}\n"
+                        "heading ${MySensors.heading}\n"
+                        "Magn Acuracy ${MySensors.magnetometer_accuray}\n"
+                            "ref set with wifis:${PositionEstimation.uploadedrefsAccespoints}\n"
+
+                      ),
+                      padding: EdgeInsets.all(15),
+                    )
+                  ],
+                ),
               ),
             )
           ]),
@@ -347,23 +438,43 @@ class _MapPageState extends State<MapPage> {
         floors.add(i);
       }
     }
+
+    int max = levelEnd;
+    int min = levelStart;
     return Container(
-      margin: EdgeInsets.all(Sizes.paddingRegular),
+      margin: EdgeInsets.only(right: Sizes.paddingRegular),
       height: 250,
       width: 30,
+
       decoration: BoxDecoration(
         borderRadius: BorderRadius.all(Radius.circular(20)),
-        color: white,
+        color: lightGrey
       ),
       child: RotatedBox(
         quarterTurns: 3,
         child: SliderTheme(
           data: SliderThemeData(
-              inactiveTickMarkColor: Colors.black,
-              activeTickMarkColor: Colors.red,
-              trackHeight: 20.0,
-              inactiveTrackColor: white,
-              activeTrackColor: white),
+            inactiveTickMarkColor: Colors.black,
+            activeTickMarkColor: Colors.red,
+            trackHeight: 30.0,
+            inactiveTrackColor: lightGrey,
+            activeTrackColor: lightGrey,
+            thumbColor: black,
+
+            thumbShape: CustomSliderThumbRect(
+              textColor: white,
+              thumbColor: Color.fromARGB(255, 94, 94, 94),
+              max: max,
+              min: min,
+              thumbRadius: 20,
+              thumbHeight: 40.0,
+            ),
+            showValueIndicator: ShowValueIndicator.onlyForDiscrete,
+            valueIndicatorTextStyle: TextStyle(
+              color: Colors.white,
+            ),
+
+          ),
           child: Slider(
             divisions: floors.length - 1,
             value: aktivefloor.toDouble(),
@@ -378,7 +489,19 @@ class _MapPageState extends State<MapPage> {
               });
             },
           ),
+
         ),
+      ),
+    );
+  }
+
+  void _showToast(BuildContext context, String text) {
+    final scaffold = ScaffoldMessenger.of(context);
+    scaffold.showSnackBar(
+      SnackBar(
+
+        content: Text('$text'),
+        duration: Duration(seconds: 1),
       ),
     );
   }

@@ -59,6 +59,7 @@ class MySensors {
   static int steps = 0;
   static int stepsgpt = 0;
   static int calibrationCounter = 0;
+  static bool countingLegitimated = true;
 
   ///Testing purpose
   ///
@@ -143,22 +144,24 @@ class MySensors {
         // _accelerometerList.addAll(_userAccelerometerValues);
         //accValues.add(_userAccelerometerValues);
 
-        StepDetector stepDetector = StepDetector();
+        /*StepDetector stepDetector = StepDetector();
         //print(stepDetector.detectStep(_userAccelerometerValues, _gyroscopeValues, DateTime.now()));
         if (stepDetector.detectStep(
             _userAccelerometerValues, _gyroscopeValues, DateTime.now())) {
           print("stepDetected!");
           stepsgpt++;
+        }*/
+        if(countingLegitimated == true){
+          StepDetection.detectPeakAndValey(
+              _userAccelerometerValues, DateTime.now().millisecondsSinceEpoch);
+          if (StepDetection.steps > steps) {
+            steps = StepDetection.steps;
+            userPosition = geo.Position(longitude: PositionEstimation.estimatedPosi.x, latitude: PositionEstimation.estimatedPosi.y, timestamp: DateTime.now(), accuracy: 30, altitude: 0, altitudeAccuracy: 0, heading: 0, headingAccuracy: 0, speed: 0, speedAccuracy: 0);
+            userPosition = DRA.nextPosition(heading_from_compass, 1.08, userPosition);
+
+          }
         }
 
-        StepDetection.detectPeakAndValey(
-            _userAccelerometerValues, DateTime.now().millisecondsSinceEpoch);
-        if (StepDetection.steps > steps) {
-          steps = StepDetection.steps;
-          userPosition = geo.Position(longitude: PositionEstimation.estimatedPosi.x, latitude: PositionEstimation.estimatedPosi.y, timestamp: DateTime.now(), accuracy: 30, altitude: 0, altitudeAccuracy: 0, heading: 0, headingAccuracy: 0, speed: 0, speedAccuracy: 0);
-          userPosition = DRA.nextPosition(heading_from_compass, 1.08, userPosition);
-
-        }
       },
       onError: (error) {
         // Logic to handle error

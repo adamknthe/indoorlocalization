@@ -63,21 +63,21 @@ class PositionEstimation {
     MySensors.userPosition = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
     MySensors.positionGps = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
     getEverything();
-    updateTick = Timer.periodic(Duration(seconds: 2), (timer) {
+
+    WifiMeasurements.wifiresultstream.listen((event) {
+      print("scanned results availeble");
       getEverything();
       print("in timer ${estimatedPosi.toString()}");
       controller.add(estimatedPosi);
       if (wifiLayer != null) {
-        print("Wifi measured # of measured : ${WifiMeasurements.accespoints.length}");
+        print("Wifi measured # of measured : ${event.length}");
         searchWifiFix(wifiLayer!, measurement);
       }else{
         getPositionWithoutWifi();
       }
-
     });
     print("started timer");
     getPositionWithoutWifi();
-
   }
 
   static void getEverything() {
@@ -86,7 +86,6 @@ class PositionEstimation {
     gpsposition = MySensors.positionGps;
     draposition = MySensors.userPosition;
     wifiLayer = WifiLayerGetter.wifiLayer;
-    measurement = WifiMeasurements.accespoints;
     walkedDistance = DRA.walkedDistance;
     positionsWithoutFix = DRA.positionsWithoutFix;
   }

@@ -8,6 +8,7 @@ const Color lightGrey = Color.fromARGB(255, 150, 150, 150);
 const Color whiteGrey = Color.fromARGB(255, 235, 235, 235);
 const Color mraBlue = Color.fromARGB(255, 0, 127, 199);
 
+
 //String Konstanten
 const String domain = "http://god-did.de/v1";         //URL DES APPWRITE-SERVERS
 const String projectId = "65a520855c6183271dca";      //PROJEKT-ID DES APPWRITE-PROJEKTES

@@ -51,7 +51,8 @@ dependencies:
   rbush: ^1.1.1
   flutter_compass: ^0.8.0
   compassx: ^0.0.2
-
+  flutter_map_location_marker: ^8.0.4
+  fluttertoast: ^8.1.1
 
 
   # The following adds the Cupertino Icons font to your application.

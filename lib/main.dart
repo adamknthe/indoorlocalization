@@ -31,7 +31,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: true,
+      debugShowCheckedModeBanner: false,
       home: const MyHomePage(title: 'Flutter Demo Home Page'),
     );
   }
@@ -55,6 +55,7 @@ class _MyHomePageState extends State<MyHomePage> {
   //static bool wifiLayerDowaloaded = false;
   WifiLayerGetter wifiLayerGetter = WifiLayerGetter();
   late WifiLayer wifiLayer;
+  bool wifilayeravaileble = false;
 
   @override
   void initState() {
@@ -62,6 +63,7 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
     WifiLayerGetter.getFirstLayer().then((value){
       wifiLayer = WifiLayerGetter.wifiLayer!;
+      wifilayeravaileble = value;
       print("Wifilayer is imported: $value");
 
     });
@@ -209,7 +211,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 ),
                 GestureDetector(
                   onTap: () {
-                    if(wifiLayer != null){
+                    if(wifilayeravaileble){
                     Navigator.push(context, MaterialPageRoute(
                       builder: (context) {
                             return MapPage(wifiLayer: wifiLayer);}));
