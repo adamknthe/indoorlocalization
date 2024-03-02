@@ -94,7 +94,6 @@ class _MyHomePageState extends State<MyHomePage> {
     fileuseracc.writeAsString("x,y,wifilist\n", mode: FileMode.append);
   }
 
-
   Future<void> createWifiLayers(int squareSizeInMeter, String name, List<int> floors) async {
     for(int x in floors){
       MapLoader? mapLoader = await MapLoader.getMaploader(name, x);

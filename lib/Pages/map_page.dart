@@ -23,6 +23,7 @@ import 'Widgets/custom_slider_thumb.dart';
 class MapPage extends StatefulWidget {
   static int selectedfloor = 0;
   WifiLayer wifiLayer;
+  static double heading = 0.0;
   MapPage({super.key, required this.wifiLayer });
 
   @override
@@ -35,8 +36,8 @@ class _MapPageState extends State<MapPage> {
 
   int accuracy = 0;
   static bool showing = false;
-  bool follow = true;
-  double zoom = 19;
+  static bool follow = true;
+  static double zoom = 19;
 
   List<MapLoader> _listMaps = [];
   GeoJsonParser geoJsonParser = GeoJsonParser(
@@ -122,7 +123,7 @@ class _MapPageState extends State<MapPage> {
               Image.asset(
                 "asset/images/calivration.gif",
               ),
-              Text("Accuracy: ${accur})}")
+              Text("Accuracy: low")
             ],
           ),
           actions: <Widget>[
@@ -167,7 +168,7 @@ class _MapPageState extends State<MapPage> {
   }
 
   List<Marker> markers = [];
-  Marker marker = Marker(
+  static Marker marker = Marker(
     child: Icon(
         Icons.accessibility
     ),
@@ -197,6 +198,7 @@ class _MapPageState extends State<MapPage> {
           showCalibrationDialog();
           MySensors.countingLegitimated = false;
         }
+
         setState(() {
 
         });
@@ -205,36 +207,26 @@ class _MapPageState extends State<MapPage> {
 
     to_end_beforeReturn.add(
       PositionEstimation.estimatedPositionStream.listen((event) {
-      print("map update1");
-      print(marker.point);
+      print("Estimatec position is: $event");
+
       if(showing == false){
         setState(() {
           LatLng position = LatLng(event.y, event.x);
-          print(event);
-          marker = Marker(
-              child: Icon(
-                  Icons.accessibility
-              ),
-              point: position
-          );
-          if(markers.length == 1){
-            markers.removeAt(0);
-          }
-          markers.add(marker);
-          print("lengthmarkes:${markers.length}");
-          if(follow = true){
+
+          if(follow == true){
             mapController.move(position, zoom);
           }
 
         });
       }
-      print(marker.point);
 
     })
     );
+
   }
 
   MapController mapController = MapController(
+
   );
 
   Future<bool> SetupSensors() async{
@@ -256,21 +248,31 @@ class _MapPageState extends State<MapPage> {
       print("Sensors is ready: $value");
     });
     startStream();
-    //createMarkerForreferencePoints();
+    createMarkerForreferencePoints();
+
+    _controllerText = TextEditingController();
+
     onZoomChanged.listen((event) {
       zoom = event;
     });
-    _controllerText = TextEditingController();
-
   }
 
   @override
   void dispose() {
     _streamController.close();
+    for(int i = 0; i < to_end_beforeReturn.length; i++){
+      to_end_beforeReturn[i].cancel();
+    }
     super.dispose();
   }
 
   int aktivefloor = 0;
+
+  static LocationMarkerPosition _currentPosition = LocationMarkerPosition(
+    latitude: 0,
+    longitude: 0,
+    accuracy: 0,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -287,7 +289,7 @@ class _MapPageState extends State<MapPage> {
 
       return SafeArea(
           child: Scaffold(
-        appBar: AppBar(
+        /*appBar: AppBar(
             leading: IconButton(
               icon: Icon(Icons.arrow_back),
               onPressed: () async {
@@ -295,7 +297,7 @@ class _MapPageState extends State<MapPage> {
                 Navigator.pop(context);
               },
             ),
-        ),
+        ),*/
         body: Container(
           child: Stack(children: [
             FlutterMap(
@@ -306,6 +308,13 @@ class _MapPageState extends State<MapPage> {
                   minZoom: 10,
                   maxZoom: 24,
                   initialRotation: 68,
+                  onPositionChanged: (position, hasGesture) {
+                    // Fill your stream when your position changes
+                    final zoom = position.zoom;
+                    if (zoom != null) {
+                      _streamController.sink.add(zoom);
+                    }
+                  },
 
               ),
               children: [
@@ -320,6 +329,10 @@ class _MapPageState extends State<MapPage> {
                 PolylineLayer(polylines: geoJsonParser.polylines),
                 MarkerLayer(markers: geoJsonParser.markers),
                 MarkerLayer(markers: markers),
+                CurrentLocationLayer(
+                  positionStream: PositionEstimation.mapPosStream,
+                  headingStream: MySensors.headingStream,
+                ),
               ],
             ),
             Column(
@@ -334,11 +347,11 @@ class _MapPageState extends State<MapPage> {
                         Floorseletor(-1, 6),
                         GestureDetector(
                           onTap: (){
-                            if(follow) {
+                            if(follow==true) {
 
                               follow = false;
                               _showToast(context,"follow deactivated!");
-                            }else if(!follow){
+                            }else if(follow == false){
 
                               follow = true;
                               _showToast(context,"follow activated!");
@@ -399,7 +412,6 @@ class _MapPageState extends State<MapPage> {
                     Container(
                       
                       child: Text(
-                        "${marker.point}\n"
                         "lat:${PositionEstimation.estimatedPosi.y},long:${PositionEstimation.estimatedPosi.x}\n"
                         "${WifiLayerGetter.wifiLayerDowaloaded}\n"
                         "Scanned wifi${WifiMeasurements.accespoints.length}\n"
@@ -420,9 +432,12 @@ class _MapPageState extends State<MapPage> {
       ));
     } else {
       return Container(
-        child: CircularProgressIndicator(
-          color: Colors.red,
-          value: null,
+        color: Colors.white,
+        child: Center(
+          child: CircularProgressIndicator(
+            color: Colors.red,
+            value: null,
+          ),
         ),
       );
     }

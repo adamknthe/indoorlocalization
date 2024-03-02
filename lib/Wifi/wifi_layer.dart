@@ -203,42 +203,42 @@ class WifiLayer {
     //TODO reshape the getting!!
     DocumentList accessPointList = await Runtime.database.listDocuments(databaseId: databaseIdWifi, collectionId: collectionIDAccesPoints,queries: [Query.limit(100),Query.equal("isKnown", true)]);
     if(accessPointList.documents.length > 0) {
-     String lastIdAccespoints = accessPointList.documents[accessPointList
-         .documents.length - 1].$id;
-     while (accessPointList.documents.length < accessPointList.total) {
-       DocumentList newlist = await Runtime.database.listDocuments(
-           databaseId: databaseIdWifi,
-           collectionId: collectionIDAccesPoints,
-           queries: [
-             Query.limit(100),
-             Query.cursorAfter(lastIdAccespoints),
-             Query.equal("isKnown", true)
-           ]);
-       accessPointList.documents.addAll(newlist.documents);
-       lastIdAccespoints =
-           accessPointList.documents[accessPointList.documents.length - 1].$id;
-     }
-     print("Accespoint list length " +
-         accessPointList.documents.length.toString());
+      String lastIdAccespoints = accessPointList.documents[accessPointList
+          .documents.length - 1].$id;
+      DocumentList newlist;
+      do {
+        newlist = await Runtime.database.listDocuments(
+            databaseId: databaseIdWifi,
+            collectionId: collectionIDAccesPoints,
+            queries: [
+              Query.limit(100),
+              Query.cursorAfter(lastIdAccespoints),
+              Query.equal("isKnown", true)
+            ]);
+        accessPointList.documents.addAll(newlist.documents);
+        lastIdAccespoints = accessPointList.documents[accessPointList.documents.length - 1].$id;
+      }while (newlist.documents.isNotEmpty);
+
+      print("Accespoint list length " +
+          accessPointList.documents.length.toString());
     }
+
     List<AccessPointMeasurement> _listAccesspoint = [];
-     for (int i = 0; i < accessPointList.documents.length; i++) {
-       _listAccesspoint.add(AccessPointMeasurement.fromJson(
-           accessPointList.documents[i].data,
-           accessPointList.documents[i].$id));
-     }
-
-
+    for (int i = 0; i < accessPointList.documents.length; i++) {
+      _listAccesspoint.add(AccessPointMeasurement.fromJson(
+          accessPointList.documents[i].data,
+          accessPointList.documents[i].$id));
+    }
     List<String> idReferencepoints = List.generate(json["ReferencePoints"].length, (index) => json["ReferencePoints"][index].toString());
     DocumentList list = await Runtime.database.listDocuments(databaseId: databaseIdWifi, collectionId: collectionIDReferencePoints,queries: [Query.limit(100)]);
-    if(list.documents.length > 0){
+    if(list.documents.isNotEmpty){
       String lastId = list.documents[list.documents.length - 1].$id;
-
-      while(list.documents.length < list.total ){
-        DocumentList newlist = await Runtime.database.listDocuments(databaseId: databaseIdWifi, collectionId: collectionIDReferencePoints,queries: [Query.limit(100),Query.cursorAfter(lastId)]);
+      DocumentList newlist;
+      do{
+        newlist = await Runtime.database.listDocuments(databaseId: databaseIdWifi, collectionId: collectionIDReferencePoints,queries: [Query.limit(100),Query.cursorAfter(lastId)]);
         list.documents.addAll(newlist.documents);
         lastId = list.documents[list.documents.length - 1].$id;
-      }
+      }while(newlist.documents.isNotEmpty);
 
 
     }

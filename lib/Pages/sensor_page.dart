@@ -508,7 +508,7 @@ class _SensorPageState extends State<SensorPage> {
             ),
             GestureDetector(
               onTap: () async{
-                userPosition = await geo.Geolocator.getCurrentPosition(desiredAccuracy: geo.LocationAccuracy.high);
+                userPosition = await geo.Geolocator.getCurrentPosition(desiredAccuracy: geo.LocationAccuracy.high, forceAndroidLocationManager: true);
                 setState((){
 
                 });

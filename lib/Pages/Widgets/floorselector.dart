@@ -58,7 +58,6 @@ class _FloorSelectorState extends State<FloorSelector> {
             onChanged: (double value){
               setState(() {
                 aktivefloor = value.round();
-                print(value);
                 BuildingInfo.aktiveFloor = aktivefloor;
               });
             },

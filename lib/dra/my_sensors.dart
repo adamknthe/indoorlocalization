@@ -4,12 +4,14 @@ import 'package:environment_sensors/environment_sensors.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_compass/flutter_compass.dart';
+import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 import 'package:flutter_sensors/flutter_sensors.dart' as sens;
 import 'package:geolocator/geolocator.dart' as geo;
 import 'package:indoornavigation/dra/dra.dart';
 import 'package:indoornavigation/dra/heading.dart';
 import 'package:indoornavigation/Util/localData.dart';
 import 'package:indoornavigation/dra/positionalgorithm/positionEstimation.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 import 'dart:math';
@@ -39,8 +41,15 @@ class MySensors {
   static int magnetometer_accuray = 0;
 
   StreamController<int> controller = StreamController<int>.broadcast();
-
   static late Stream acuracyStream;
+
+  StreamController<LocationMarkerHeading?> headingController = StreamController<LocationMarkerHeading?>.broadcast();
+  static late Stream<LocationMarkerHeading?>? headingStream;
+
+
+
+  StreamController<geo.Position> drapositionController = StreamController<geo.Position>.broadcast();
+  static late Stream<geo.Position> draposition;
 
   int i = 0;
   static geo.Position userPosition = geo.Position(
@@ -103,6 +112,9 @@ class MySensors {
 
 
     acuracyStream = controller.stream;
+    draposition = drapositionController.stream;
+    headingStream = headingController.stream;
+
 
     motion.motionSensors.magnetometer.listen((motion.MagnetometerEvent event) {
       _magnetometer.setValues(event.x, event.y, event.z);
@@ -138,6 +150,7 @@ class MySensors {
       pitch = (event.pitch / 2 / pi * 360).round();
       roll = (event.roll / 2 / pi * 360).round();
       heading = yaw;
+      headingController.add(LocationMarkerHeading(heading: degToRadian(heading), accuracy: pi * 0.1));
     });
     _streamSubscriptions.add(userAccelerometerEventStream(samplingPeriod: SensorInterval.uiInterval).listen((UserAccelerometerEvent event) {
         _userAccelerometerValues = <double>[event.x, event.y, event.z];
@@ -157,8 +170,8 @@ class MySensors {
           if (StepDetection.steps > steps) {
             steps = StepDetection.steps;
             userPosition = geo.Position(longitude: PositionEstimation.estimatedPosi.x, latitude: PositionEstimation.estimatedPosi.y, timestamp: DateTime.now(), accuracy: 30, altitude: 0, altitudeAccuracy: 0, heading: 0, headingAccuracy: 0, speed: 0, speedAccuracy: 0);
-            userPosition = DRA.nextPosition(heading_from_compass, 1.08, userPosition);
-
+            userPosition = DRA.nextPosition(heading, 1.08, userPosition);
+            drapositionController.add(userPosition);
           }
         }
 
@@ -217,7 +230,8 @@ class MySensors {
           //print(event.heading);
           //print(event.accuracy);
 
-          heading_from_compass = (event.heading!) % 360;
+              heading_from_compass = (event.heading!) % 360;
+
           /*if(positionGps!.heading < heading_from_compass-15 || positionGps!.heading < heading_from_compass-15 ){
           print("heading wya to off\n heading is :$heading_from_compass \n should: ${positionGps!.heading} ");
           print(positionGps!.headingAccuracy);

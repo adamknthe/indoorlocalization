@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:indoornavigation/Pages/map_page.dart';
 import 'package:indoornavigation/Util/Mercator.dart';
 import 'package:indoornavigation/Util/posi.dart';
 import 'package:indoornavigation/Wifi/accesspointmeasurement.dart';
@@ -57,20 +59,28 @@ class PositionEstimation {
   static StreamController<Posi> controller = StreamController<Posi>.broadcast();
   static late Stream<Posi> estimatedPositionStream;
 
+  static StreamController<LocationMarkerPosition?> mapPosController = StreamController<LocationMarkerPosition?>.broadcast();
+  static late Stream<LocationMarkerPosition?>? mapPosStream;
+
   static Future<void> startTimer() async {
     estimatedPositionStream = controller.stream;
+    mapPosStream = mapPosController.stream;
     print("is broadcast :${estimatedPositionStream.isBroadcast}");
-    MySensors.userPosition = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-    MySensors.positionGps = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+    MySensors.userPosition = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high,forceAndroidLocationManager: true);
+    MySensors.positionGps = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high,forceAndroidLocationManager: true);
     getEverything();
 
+    MySensors.draposition.listen((event) {
+      print("dra update! movement");
+
+      controller.add(Posi(x: event.longitude , y: event.latitude));
+      mapPosController.add(LocationMarkerPosition(latitude: event.latitude, longitude: event.longitude, accuracy: 7));
+    });
+
     WifiMeasurements.wifiresultstream.listen((event) {
-      print("scanned results availeble");
       getEverything();
-      print("in timer ${estimatedPosi.toString()}");
-      controller.add(estimatedPosi);
+      measurement = event;
       if (wifiLayer != null) {
-        print("Wifi measured # of measured : ${event.length}");
         searchWifiFix(wifiLayer!, measurement);
       }else{
         getPositionWithoutWifi();
@@ -90,10 +100,9 @@ class PositionEstimation {
     positionsWithoutFix = DRA.positionsWithoutFix;
   }
 
-  static void searchWifiFix(
-      WifiLayer wifiLayer, List<WiFiAccessPoint> accespoints) {
-    print(accespoints.length);
+  static void searchWifiFix(WifiLayer wifiLayer, List<WiFiAccessPoint> accespoints) {
     if (accespoints.length < 1) {
+      print("return because no accespoints");
       return;
     }
     List<PossiblePosition> pos = getPossible(wifiLayer.referencePoints, accespoints);
@@ -116,7 +125,10 @@ class PositionEstimation {
     if (pos.length > 0) {
       ReferencePoint ref = wifiLayer.referencePoints.firstWhere((element) => element.documentId == pos[0].docId);
       estimatedPosi = Posi(x: ref.longitude, y: ref.latitude);
+      print("position came from wifi ");
       controller.add(estimatedPosi);
+      mapPosController.add(LocationMarkerPosition(latitude: ref.latitude, longitude: ref.longitude, accuracy: 7));
+
     }
 
     updateRef();
@@ -186,7 +198,7 @@ class PositionEstimation {
 
       if(draposition.timestamp.isAfter(gpsposition.timestamp)){
         if (gpsposition.accuracy > 7) {
-          print("always returning too early2");
+          print("gps accuracy: ${gpsposition.accuracy}");
           return;
         }
         double distance = Geolocator.distanceBetween(gpsposition.latitude, gpsposition.longitude, draposition.latitude, draposition.longitude);
@@ -201,14 +213,18 @@ class PositionEstimation {
           MySensors.userPosition.longitude = gpsposition.longitude;
           MySensors.userPosition.latitude = gpsposition.latitude;
           MySensors.userPosition.timestamp = gpsposition.timestamp;
+          controller.add(estimatedPosi);
+          mapPosController.add(LocationMarkerPosition(latitude: estimatedPosi.y , longitude: estimatedPosi.x, accuracy: 7));
+
         }
       }else {
-
-        print("set from dra");
-        print("drapositionused");
+        print("dra positionused");
         estimatedPosi.x = draposition.longitude;
         estimatedPosi.y = draposition.latitude;
         drapositionused = true;
+        controller.add(estimatedPosi);
+        mapPosController.add(LocationMarkerPosition(latitude: estimatedPosi.y , longitude: estimatedPosi.x, accuracy: 7));
+
       }
 
     if(estimatedPosi.x == 0){
@@ -248,7 +264,7 @@ class PositionEstimation {
 
       }
     }
-    print("reference point is created");
+    print("accesspoints are point is created");
   }
 
   static void exceute() {

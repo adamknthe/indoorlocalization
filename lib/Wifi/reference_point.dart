@@ -58,24 +58,10 @@ class ReferencePoint{
 
   static ReferencePoint fromJsonfast(Map<String, dynamic> json, String docId, List<AccessPointMeasurement> listAccessPoints){
 
-    List<String> ids1 = [];
-    if(json["accespointsNew"] != null){
-      ids1 = List.generate(json["accespointsNew"].length, (index) => json["accespointsNew"][index].toString());
-    }
-    List<String> ids = [];
-    if(json["accespointsNew"] != null){
-      ids = List.generate(json["accespointsNew"].length, (index) => json["accespointsNew"][index].toString());
-    }
-    List<String> accesspointsIds = ids;
-    List<String> accesspointsNewIds = ids1;
     List<AccessPointMeasurement> res = [];
-    List<AccessPointMeasurement> res1 = [];
     for(int i = 0; i < listAccessPoints.length; i++){
-      if(accesspointsIds.contains(listAccessPoints[i].documentId)){
+      if(listAccessPoints[i].referenceId == docId){
         res.add(listAccessPoints[i]);
-      }
-      if(accesspointsNewIds.contains(listAccessPoints[i].documentId)){
-        res1.add(listAccessPoints[i]);
       }
     }
 
@@ -84,7 +70,7 @@ class ReferencePoint{
         latitude: json["latitutude"],
         longitude: json["longitude"],
         accesspoints: res,
-        accesspointsNew: res1,
+        accesspointsNew: [],
     );
   }
 
