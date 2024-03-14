@@ -1,16 +1,13 @@
-# indoornavigation
+<h1 align="center" id="title">A sensor and Wi-Fi based approach for indoor localization on smartphones</h1>
 
-A new Flutter project.
+<p id="description">A sensor and Wi-Fi based approach for indoor localization on smartphones A Flutter application for indoor localization withs MEMS sensors and Wi-Fi.</p>
 
-## Getting Started
+<h2>🚀 Demo</h2>
 
-This project is a starting point for a Flutter application.
+[https://github.com/adamknthe/indoornavigation/blob/master/Demo/app-release.apk](https://github.com/adamknthe/indoornavigation/blob/master/Demo/app-release.apk)
 
-A few resources to get you started if this is your first Flutter project:
+<h2>Project Screenshots:</h2>
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+<img src="https://github.com/adamknthe/indoornavigation/blob/master/Demo/screenshots/End_res.jpg" alt="project-screenshot" width="300" height="500/">
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+<img src="" alt="project-screenshot" width="400" height="400/">
