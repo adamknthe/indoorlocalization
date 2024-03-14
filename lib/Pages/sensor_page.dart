@@ -202,7 +202,7 @@ class _SensorPageState extends State<SensorPage> {
 
 
   Future<void> SetupFile() async {
-    fileuseracc = await localData.createFile("position vergleich gps and dead reckoning");
+    fileuseracc = await LocalData.createFile("position vergleich gps and dead reckoning");
     fileuseracc.writeAsString("counter,latDra,longDra,latGps,longGps,yaw\n", mode: FileMode.append);
     setFile = true;
   }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
@@ -13,8 +14,10 @@ import 'package:indoornavigation/Wifi/wifimeasurements.dart';
 import 'package:indoornavigation/dra/dra.dart';
 import 'package:indoornavigation/dra/my_sensors.dart';
 import 'package:indoornavigation/dra/step_detection.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:rbush/rbush.dart';
 import 'package:wifi_scan/wifi_scan.dart';
+import '../../Util/localData.dart';
 import '../peak.dart';
 
 class PositionEstimation {
@@ -55,52 +58,98 @@ class PositionEstimation {
   static bool drapositionused = false;
   static int uploadedrefsAccespoints = 0;
   static String isstillSame = "";
+  static File fileuseracc = File("");
 
-  static StreamController<Posi> controller = StreamController<Posi>.broadcast();
-  static late Stream<Posi> estimatedPositionStream;
+  //static StreamController<Posi> controller = StreamController<Posi>.broadcast();
+  //static late Stream<Posi> estimatedPositionStream;
 
   static StreamController<LocationMarkerPosition?> mapPosController = StreamController<LocationMarkerPosition?>.broadcast();
   static late Stream<LocationMarkerPosition?>? mapPosStream;
 
   static Future<void> startTimer() async {
-    estimatedPositionStream = controller.stream;
+    await SetupFile();
+    //estimatedPositionStream = controller.stream;
     mapPosStream = mapPosController.stream;
-    print("is broadcast :${estimatedPositionStream.isBroadcast}");
-    MySensors.userPosition = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high,forceAndroidLocationManager: true);
-    MySensors.positionGps = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high,forceAndroidLocationManager: true);
+    //print("is broadcast :${estimatedPositionStream.isBroadcast}");
+    MySensors.userPosition = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high,forceAndroidLocationManager: false);
+    MySensors.positionGps = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high,forceAndroidLocationManager: false);
     getEverything();
 
     MySensors.draposition.listen((event) {
-      print("dra update! movement");
+      //print("dra update! movement");
+      if(!WifiLayer.isInsideOfBuildingFromList(WifiLayer.getListFromPolygonOutline(wifiLayer!.GeojsonOfOutline), Posi(x: event.longitude , y: event.latitude))){
+        //TODO problem with jump
+        late StreamSubscription sub;
+         sub = WifiMeasurements.wifiresultstream.listen((event) async {
+           measurement.clear();
+           for(int i = 0; i < event.length; i++){
+             if(event[i].level > -81){
+               measurement.add(event[i]);
+             }
+           }
+           await searchWifiFixStart(wifiLayer! , measurement, await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high,forceAndroidLocationManager: false) );
+           sub.cancel();
+         });
+      }else{
+        //controller.add(Posi(x: event.longitude , y: event.latitude));
+        mapPosController.add(LocationMarkerPosition(latitude: event.latitude, longitude: event.longitude, accuracy: 7));
+        draposition = event;
+        estimatedPosi = Posi(x: event.longitude , y: event.latitude);
+        fileuseracc.writeAsString("$estimatedPosi,${MySensors.oldheading}\n", mode: FileMode.append);
+      }
 
-      controller.add(Posi(x: event.longitude , y: event.latitude));
-      mapPosController.add(LocationMarkerPosition(latitude: event.latitude, longitude: event.longitude, accuracy: 7));
+
     });
 
     WifiMeasurements.wifiresultstream.listen((event) {
       getEverything();
-      measurement = event;
-      if (wifiLayer != null) {
-        searchWifiFix(wifiLayer!, measurement);
-      }else{
-        getPositionWithoutWifi();
+      measurement.clear();
+      for(int i = 0; i < event.length; i++){
+        if(event[i].level > -81){
+          measurement.add(event[i]);
+        }
+      }
+     // print("measurement: $measurement");
+        /// ist estimated in x y
+      if(wifiLayer != null){
+        if(refKnown()){
+          searchWifiFix(wifiLayer!, measurement);
+        }else{
+          updateRef();
+        }
       }
     });
     print("started timer");
-    getPositionWithoutWifi();
   }
+
+
+  static bool refKnown (){
+    String reftoUpdate = docidNearestRef(wifiLayer!.referencePoints, estimatedPosi);
+    ReferencePoint ref = wifiLayer!.referencePoints.firstWhere((element) => element.documentId == reftoUpdate);
+    if(ref.accesspoints.isNotEmpty){
+      return true;
+    }
+    return false;
+  }
+
+
+  static Future<void> SetupFile() async {
+    fileuseracc = await LocalData.createFile("walkingTest");
+    fileuseracc.writeAsString("x,y,wifilist\n", mode: FileMode.append);
+  }
+
 
   static void getEverything() {
     peaks = StepDetection.peaksAndValey;
     steps = StepDetection.steps;
     gpsposition = MySensors.positionGps;
-    draposition = MySensors.userPosition;
     wifiLayer = WifiLayerGetter.wifiLayer;
     walkedDistance = DRA.walkedDistance;
     positionsWithoutFix = DRA.positionsWithoutFix;
   }
 
   static void searchWifiFix(WifiLayer wifiLayer, List<WiFiAccessPoint> accespoints) {
+    //print("in search fix");
     if (accespoints.length < 1) {
       print("return because no accespoints");
       return;
@@ -122,33 +171,93 @@ class PositionEstimation {
       return;
     }
     */
-    if (pos.length > 0) {
-      ReferencePoint ref = wifiLayer.referencePoints.firstWhere((element) => element.documentId == pos[0].docId);
-      estimatedPosi = Posi(x: ref.longitude, y: ref.latitude);
-      print("position came from wifi ");
-      controller.add(estimatedPosi);
-      mapPosController.add(LocationMarkerPosition(latitude: ref.latitude, longitude: ref.longitude, accuracy: 7));
 
+    if (pos.length > 3) {
+      ReferencePoint ref = wifiLayer.referencePoints.firstWhere((element) => element.documentId == pos[0].docId);
+
+      print("distance : ${Geolocator.distanceBetween(ref.latitude  , ref.longitude, draposition.latitude, draposition.longitude)}");
+      if(Geolocator.distanceBetween(ref.latitude  , ref.longitude, draposition.latitude, draposition.longitude) < 2.1){
+        estimatedPosi = Posi(x: ref.longitude, y: ref.latitude);
+        print("position came from wifi ");
+      }
+
+      //controller.add(estimatedPosi);
+      mapPosController.add(LocationMarkerPosition(latitude: estimatedPosi.y, longitude: estimatedPosi.x, accuracy: 7));
     }
 
     updateRef();
 
   }
 
+  static bool searchWifiFixStart(WifiLayer wifiLayer, List<WiFiAccessPoint> accespoints ,Position posGps) {
+    print("search first fix");
+    if (accespoints.length < 1) {
+      print("return because no accespoints");
+      return false;
+    }
+    List<PossiblePosition> pos = getPossible(wifiLayer.referencePoints, accespoints);
+
+    /*
+    List<ReferencePoint> containAccespoints = [];
+    for (int i = 0; i < wifiLayer.referencePoints.length; i++) {
+      for (int j = 0; j < accespoints.length; j++) {
+        if (wifiLayer.referencePoints[i].accesspoints
+            .contains(accespoints[j].bssid)) {
+          containAccespoints.add(wifiLayer.referencePoints[i]);
+        }
+      }
+    }
+    if (containAccespoints.length < 0) {
+      SetNewAccespoints(accespoints);
+      return;
+    }
+    */
+
+    if (pos.length > 3) {
+      ReferencePoint ref = wifiLayer.referencePoints.firstWhere((element) => element.documentId == pos[0].docId);
+      double distance = 0;
+      for(int i = 0; i < 4; i++){
+        ReferencePoint refx = wifiLayer.referencePoints.firstWhere((element) => element.documentId == pos[i].docId);
+        distance = Geolocator.distanceBetween(ref.latitude  , ref.longitude, posGps.latitude, posGps.longitude);
+        if(distance < posGps.accuracy){
+          ref = refx;
+          distance = Geolocator.distanceBetween(refx.latitude  , refx.longitude, posGps.latitude, posGps.longitude);
+          break;
+        }
+      }
+
+      print("${posGps.latitude},${posGps.longitude},${posGps.accuracy}");
+      print("${ref.latitude},${ref.longitude}");
+      print("distance : $distance");
+      if(distance <= posGps.accuracy + 2.0){
+        estimatedPosi = Posi(x: ref.longitude, y: ref.latitude);
+        print("position came from wifi from stream start ");
+      }else{
+        estimatedPosi = Posi(x: posGps.longitude, y: posGps.latitude);
+        print("position came from wifi from stream gps");
+      }
+
+      //controller.add(estimatedPosi);
+      mapPosController.add(LocationMarkerPosition(latitude: estimatedPosi.y, longitude: estimatedPosi.x, accuracy: 7));
+      return true;
+    }
+
+    return false;
+
+  }
+
   static Future<void> updateRef() async {
-    getPositionWithoutWifi();
     String reftoUpdate = docidNearestRef(wifiLayer!.referencePoints, estimatedPosi);
     if(isstillSame != reftoUpdate){
       ReferencePoint ref = wifiLayer!.referencePoints.firstWhere((element) => element.documentId == reftoUpdate);
-      if(Geolocator.distanceBetween(estimatedPosi.y, estimatedPosi.x, ref.latitude , ref.longitude) > 2.1){
-        print("too far ${Geolocator.distanceBetween(estimatedPosi.y, estimatedPosi.x, ref.latitude , ref.longitude)}");
-        getPositionWithoutWifi();
+      if(Geolocator.distanceBetween(estimatedPosi.y, estimatedPosi.x, ref.latitude , ref.longitude) > 2.0){
+        //print("too far ${Geolocator.distanceBetween(estimatedPosi.y, estimatedPosi.x, ref.latitude , ref.longitude)}");
         return;
       }else{
         List<WiFiAccessPoint> accespoints = measurement;
         SetNewAccespoints(ref, accespoints);
         uploadedrefsAccespoints++;
-        print("uploaded Ref:${ref.documentId}");
+        //print("uploaded Ref:${ref.documentId}");
       }
       isstillSame = reftoUpdate;
     }
@@ -157,6 +266,7 @@ class PositionEstimation {
   }
 
   static List<PossiblePosition> getPossible(List<ReferencePoint> ref, List<WiFiAccessPoint> accespoints) {
+    //TODO search überabeiten
     List<PossiblePosition> res = [];
     ref.forEach((reference) {
       int allError = 0;
@@ -165,8 +275,10 @@ class PositionEstimation {
         accespoints.forEach((apm) {
           if (ap.bssid == apm.bssid) {
             int error = sqrt(pow((ap.level - apm.level), 2)).round(); //euclidean distance 1D
-            countoverlap++;
-            allError = allError + error;
+            if(error <= 3 ){
+              countoverlap++;
+              allError = allError + error;
+            }
           }
         });
       });
@@ -180,13 +292,17 @@ class PositionEstimation {
     });
     res.sort(
       (a, b) {
-        int x = a.avgError.compareTo(b.avgError);
+        int x =  -a.overlap.compareTo(b.overlap);
         if (x == 0) {
-          return -a.overlap.compareTo(b.overlap);
+          int y = a.nonoverlap.compareTo(b.nonoverlap);
+          if(y == 0){
+            return a.avgError.compareTo(b.avgError) ;
+          }
         }
         return x;
       },
     );
+    print(res);
     return res;
   }
 
@@ -213,7 +329,7 @@ class PositionEstimation {
           MySensors.userPosition.longitude = gpsposition.longitude;
           MySensors.userPosition.latitude = gpsposition.latitude;
           MySensors.userPosition.timestamp = gpsposition.timestamp;
-          controller.add(estimatedPosi);
+          //controller.add(estimatedPosi);
           mapPosController.add(LocationMarkerPosition(latitude: estimatedPosi.y , longitude: estimatedPosi.x, accuracy: 7));
 
         }
@@ -222,7 +338,7 @@ class PositionEstimation {
         estimatedPosi.x = draposition.longitude;
         estimatedPosi.y = draposition.latitude;
         drapositionused = true;
-        controller.add(estimatedPosi);
+        //controller.add(estimatedPosi);
         mapPosController.add(LocationMarkerPosition(latitude: estimatedPosi.y , longitude: estimatedPosi.x, accuracy: 7));
 
       }
@@ -250,7 +366,7 @@ class PositionEstimation {
                 is80211mcResponder: accespoints[i].is80211mcResponder);
 
         if (accessPointMeasurement != null) {
-          referencePoint.accesspointsNew.add(AccessPointMeasurement(
+          referencePoint.accesspoints.add(AccessPointMeasurement(
               ssid: accessPointMeasurement.ssid,
               bssid: accessPointMeasurement.bssid,
               level: accessPointMeasurement.level,
@@ -264,7 +380,7 @@ class PositionEstimation {
 
       }
     }
-    print("accesspoints are point is created");
+    //print("accesspoints are points is created");
   }
 
   static void exceute() {
@@ -302,4 +418,10 @@ class PossiblePosition {
       required this.docId,
       required this.overlap,
       required this.nonoverlap});
+
+  @override
+  String toString() {
+    // TODO: implement toString
+    return "[avgEr: $avgError; overlap: $overlap; non oL: $nonoverlap]";
+  }
 }

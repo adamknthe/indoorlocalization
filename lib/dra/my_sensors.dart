@@ -1,24 +1,17 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:environment_sensors/environment_sensors.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_compass/flutter_compass.dart';
 import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
-import 'package:flutter_sensors/flutter_sensors.dart' as sens;
 import 'package:geolocator/geolocator.dart' as geo;
 import 'package:indoornavigation/dra/dra.dart';
-import 'package:indoornavigation/dra/heading.dart';
 import 'package:indoornavigation/Util/localData.dart';
 import 'package:indoornavigation/dra/positionalgorithm/positionEstimation.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:sensors_plus/sensors_plus.dart';
-import 'package:syncfusion_flutter_charts/charts.dart';
-import 'dart:math';
 import 'package:vector_math/vector_math_64.dart' hide Colors;
 import 'package:motion_sensors/motion_sensors.dart' as motion;
-
-import '../Pages/map_page.dart';
 import '../dra/step_detection.dart';
 
 class MySensors {
@@ -38,6 +31,7 @@ class MySensors {
   int roll = 0;
   static double pressure = 0;
   static double heading_from_compass = 0.0;
+  static double oldheading = 0.0;
   static int magnetometer_accuray = 0;
 
   StreamController<int> controller = StreamController<int>.broadcast();
@@ -46,23 +40,11 @@ class MySensors {
   StreamController<LocationMarkerHeading?> headingController = StreamController<LocationMarkerHeading?>.broadcast();
   static late Stream<LocationMarkerHeading?>? headingStream;
 
-
-
   StreamController<geo.Position> drapositionController = StreamController<geo.Position>.broadcast();
   static late Stream<geo.Position> draposition;
 
   int i = 0;
-  static geo.Position userPosition = geo.Position(
-      longitude: 0,
-      latitude: 0,
-      timestamp: DateTime.utc(0),
-      accuracy: 0,
-      altitude: 0,
-      altitudeAccuracy: 0,
-      heading: 0,
-      headingAccuracy: 0,
-      speed: 0,
-      speedAccuracy: 0);
+  static geo.Position userPosition = geo.Position(longitude: 0, latitude: 0, timestamp: DateTime.utc(0), accuracy: 0, altitude: 0, altitudeAccuracy: 0, heading: 0, headingAccuracy: 0, speed: 0, speedAccuracy: 0);
 
   static int counter = 50;
   static int steps = 0;
@@ -102,7 +84,7 @@ class MySensors {
   );
 
   Future<void> SetupFile() async {
-    fileuseracc = await localData
+    fileuseracc = await LocalData
         .createFile("pressure_and_stockwerke_mit_verschidenen_höhen");
     fileuseracc.writeAsString("stockUndPos,wifilist\n", mode: FileMode.append);
   }
@@ -110,11 +92,9 @@ class MySensors {
   Future<bool> StartSensorsAndPosition(BuildContext context) async {
     bool allSenorsready = false;
 
-
     acuracyStream = controller.stream;
     draposition = drapositionController.stream;
     headingStream = headingController.stream;
-
 
     motion.motionSensors.magnetometer.listen((motion.MagnetometerEvent event) {
       _magnetometer.setValues(event.x, event.y, event.z);
@@ -149,10 +129,10 @@ class MySensors {
       yaw = ((event.yaw/-2/pi*360) + 5) % 360;
       pitch = (event.pitch / 2 / pi * 360).round();
       roll = (event.roll / 2 / pi * 360).round();
-      heading = yaw;
-      headingController.add(LocationMarkerHeading(heading: degToRadian(heading), accuracy: pi * 0.1));
+
+
     });
-    _streamSubscriptions.add(userAccelerometerEventStream(samplingPeriod: SensorInterval.uiInterval).listen((UserAccelerometerEvent event) {
+    _streamSubscriptions.add(userAccelerometerEventStream(samplingPeriod: SensorInterval.fastestInterval).listen((UserAccelerometerEvent event) {
         _userAccelerometerValues = <double>[event.x, event.y, event.z];
         // _accelerometerList.addAll(_userAccelerometerValues);
         //accValues.add(_userAccelerometerValues);
@@ -165,12 +145,15 @@ class MySensors {
           stepsgpt++;
         }*/
         if(countingLegitimated == true){
-          StepDetection.detectPeakAndValey(
-              _userAccelerometerValues, DateTime.now().millisecondsSinceEpoch);
+          StepDetection.detectPeakAndValey(_userAccelerometerValues, DateTime.now().millisecondsSinceEpoch);
           if (StepDetection.steps > steps) {
             steps = StepDetection.steps;
             userPosition = geo.Position(longitude: PositionEstimation.estimatedPosi.x, latitude: PositionEstimation.estimatedPosi.y, timestamp: DateTime.now(), accuracy: 30, altitude: 0, altitudeAccuracy: 0, heading: 0, headingAccuracy: 0, speed: 0, speedAccuracy: 0);
-            userPosition = DRA.nextPosition(heading, 1.08, userPosition);
+            double SL = 0.92;
+            /*if(steps > 2){
+              SL =
+            }*/
+            userPosition = DRA.nextPosition(oldheading, SL, userPosition);
             drapositionController.add(userPosition);
           }
         }
@@ -182,23 +165,10 @@ class MySensors {
       },
       cancelOnError: true,
     ));
-    _streamSubscriptions.add(
-        accelerometerEventStream(samplingPeriod: SensorInterval.fastestInterval)
-            .listen(
-      (AccelerometerEvent event) {
-        _accelerometerValues = <double>[event.x, event.y, event.z];
-      },
-      onError: (error) {
-        // Logic to handle error
-        // Needed for Android in case sensor is not available
-      },
-      cancelOnError: true,
-    ));
     _streamSubscriptions.add(EnvironmentSensors().pressure.listen((event) {
       pressure = event;
     }));
-    _streamSubscriptions.add(
-        magnetometerEventStream(samplingPeriod: SensorInterval.uiInterval).listen(
+    _streamSubscriptions.add(magnetometerEventStream(samplingPeriod: SensorInterval.uiInterval).listen(
               (MagnetometerEvent event) {
               magnetometer_accuray = event.accuracy.toInt();
               //print("inside stream: $magnetometer_accuray");
@@ -211,26 +181,15 @@ class MySensors {
           cancelOnError: true,
         )
     );
-    /*
-        _streamSubscriptions.add(
-            magnetometerEventStream(samplingPeriod: SensorInterval.fastestInterval).listen(
-                (MagnetometerEvent event) {
-                  _magnetometerValues = <double>[event.x, event.y, event.z];
-                  },
-            onError: (error) {
-              // Logic to handle error
-              // Needed for Android in case sensor is not available
-            },
-            cancelOnError: true,
-          )
-        );*/
-    //timer = Timer.periodic(const Duration(milliseconds: 200), _updateDataSource);
+
     _streamSubscriptions.add(
         FlutterCompass.events!.listen((event) {
           //print(event.heading);
           //print(event.accuracy);
 
-              heading_from_compass = (event.heading!) % 360;
+          heading_from_compass = ((event.heading! + 15) % 360);
+          oldheading = heading_from_compass * 0.2 + oldheading *0.8;
+          headingController.add(LocationMarkerHeading(heading: degToRadian(oldheading), accuracy: pi * 0.06));
 
           /*if(positionGps!.heading < heading_from_compass-15 || positionGps!.heading < heading_from_compass-15 ){
           print("heading wya to off\n heading is :$heading_from_compass \n should: ${positionGps!.heading} ");

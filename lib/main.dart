@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:indoornavigation/Pages/sensor_page.dart';
 import 'package:indoornavigation/Util/map_loader.dart';
@@ -13,12 +15,14 @@ import 'package:indoornavigation/Wifi/wifimeasurements.dart';
 import 'package:indoornavigation/constants/runtime.dart';
 import 'package:indoornavigation/dra/my_sensors.dart';
 import 'package:indoornavigation/dra/positionalgorithm/positionEstimation.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:vector_math/vector_math.dart' as vmath;
 import 'dart:io';
 import 'Pages/map_page.dart';
 import 'package:indoornavigation/Util/localData.dart';
 
 import 'Util/Mercator.dart';
+import 'Util/posi.dart';
 import 'constants/sizes.dart';
 
 void main() {
@@ -56,42 +60,107 @@ class _MyHomePageState extends State<MyHomePage> {
   WifiLayerGetter wifiLayerGetter = WifiLayerGetter();
   late WifiLayer wifiLayer;
   bool wifilayeravaileble = false;
+  bool sensorsReady = false;
+
+  void _showToast(BuildContext context, String text) {
+    final scaffold = ScaffoldMessenger.of(context);
+    scaffold.showSnackBar(
+      SnackBar(
+
+        content: Text(text),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+  }
+
+  Future<void> _showErrorToast(BuildContext context, String text) async {
+    final scaffold = ScaffoldMessenger.of(context);
+    scaffold.showSnackBar(
+      SnackBar(
+
+        content: Text(text),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+  }
 
   @override
   void initState() {
     Runtime.initialize();
     super.initState();
-    WifiLayerGetter.getFirstLayer().then((value){
+    //SetupFile();
+    WifiLayerGetter.getFirstLayer().then((value) async {
+
       wifiLayer = WifiLayerGetter.wifiLayer!;
       wifilayeravaileble = value;
+      _showToast(context, "Wifilayer imported: $value");
       print("Wifilayer is imported: $value");
+      LevelCalculator.checkSensorsAvaileble();
+      WifiMeasurements.setupWifi(context);
+      //startlisten();
+      await SetupPosition(wifiLayer);
+      SetupSensors().then((value){
 
-    });
+        print("Sensors is ready: $value");
+        sensorsReady = true;
+
+        PositionEstimation.startTimer();
+        _showToast(context, "sensors started: $value");
+      }).onError((error, stackTrace) {
+         _showErrorToast(context, "Error with sensors occured\n${error.toString()}");
+      });
+    }).onError((error, stackTrace) {
+      _showErrorToast(context, "Error with download occured\n${error.toString()}");
+    });;
     //test();
 
-   LevelCalculator.checkSensorsAvaileble();
-   WifiMeasurements.SetupWifi(context);
-   startlisten();
-   SetupPosition();
-   SetupSensors().then((value){
-     print("Sensors is ready: $value");
-   });
-   PositionEstimation.startTimer();
+
    //SetupFile();
 
   }
 
-  ///TODO gets a first position fix and check permissions
-  Future<void> SetupPosition() async {
-    location = await Geolocator.getCurrentPosition(
+  Position p = MySensors.positionGps;
+  ///TODO gets a first position fix from wifi or gps
+  Future<void> SetupPosition(WifiLayer layer) async {
+    //52.516578139797026, 13.323632683857415
+    //MySensors.userPosition = Position(longitude:  13.602261228434578, latitude: 52.50817621313987,  timestamp: DateTime.now(), accuracy: 2, altitude: 0, altitudeAccuracy: 0, heading: 0, headingAccuracy: 0, speed: 0 , speedAccuracy: 0);
+    //PositionEstimation.estimatedPosi = Posi(x:13.602261228434578, y: 52.50817621313987);
+
+
+    bool gotfromwififirst = false;
+    bool checkwifi = false;
+
+    Position position =  await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
         forceAndroidLocationManager: false);
-  } // 52.51678, latitude: 13.32347      52.51658, 13.32366
+    p = position;
+
+    late StreamSubscription<dynamic> subscription;
+    subscription = WifiMeasurements.wifiresultstream.listen((event) {
+      print("started wifi search!");
+      gotfromwififirst = PositionEstimation.searchWifiFixStart(layer, event, position);
+      print(PositionEstimation.estimatedPosi);
+      checkwifi = true;
+      subscription.cancel();
+    });
+
+    while(checkwifi == false){
+      await Future.delayed(Duration(seconds: 1));
+    }
+    if(gotfromwififirst){
+      return;
+    }else{
+      print("has to use gps");
+      MySensors.userPosition = position;
+      PositionEstimation.estimatedPosi = Posi( x: MySensors.userPosition.longitude, y: MySensors.userPosition.latitude);
+    }
+
+  }
 
   ///not needed for realease
   Future<void> SetupFile() async {
-    fileuseracc = await localData.createFile("wifi_with_positions");
-    fileuseracc.writeAsString("x,y,wifilist\n", mode: FileMode.append);
+    fileuseracc = await LocalData.createFile("test_start_posi");
+    fileuseracc.writeAsString("x_gps,y_gps,x_wifi,x_wifi,realPos is 52.51691242353624, 13.324037996280671\n", mode: FileMode.append);
   }
 
   Future<void> createWifiLayers(int squareSizeInMeter, String name, List<int> floors) async {
@@ -162,8 +231,8 @@ class _MyHomePageState extends State<MyHomePage> {
           content: const SingleChildScrollView(
             child: ListBody(
               children: <Widget>[
-                Text('This is a demo alert dialog.'),
-                Text('Would you like to approve of this message?'),
+                Text('Wifilayer not ready'),
+                Text('Or sensors not ready\please wait'),
               ],
             ),
           ),
@@ -179,6 +248,8 @@ class _MyHomePageState extends State<MyHomePage> {
       },
     );
   }
+  List<Marker> markers = [];
+  String text = "";
 
   @override
   Widget build(BuildContext context) {
@@ -209,8 +280,19 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                 ),
                 GestureDetector(
+                  onTap: (){//13.323632683857415, y: 52.516578139797026
+                    MySensors.userPosition = Position(longitude: 13.323632683857415, latitude: 52.516578139797026,  timestamp: DateTime.now(), accuracy: 2, altitude: 0, altitudeAccuracy: 0, heading: 0, headingAccuracy: 0, speed: 0 , speedAccuracy: 0);
+                    PositionEstimation.estimatedPosi = Posi(x:13.323632683857415, y: 52.516578139797026);
+                  },
+                  child: Container(
+                    color: Colors.yellowAccent,
+                    height: 100,
+                    child: Text("SetstartPosition"),
+                  ),
+                ),
+                GestureDetector(
                   onTap: () {
-                    if(wifilayeravaileble){
+                    if(wifilayeravaileble && sensorsReady){
                     Navigator.push(context, MaterialPageRoute(
                       builder: (context) {
                             return MapPage(wifiLayer: wifiLayer);}));
@@ -224,14 +306,58 @@ class _MyHomePageState extends State<MyHomePage> {
                     child: Text("Map Page"),
                   ),
                 ),
+                Container(child: TextField(
+                  controller: myControllery,
+                    onChanged: (String newText) {
+                      text = newText;
+                    }
+                ),),
                 GestureDetector(
-                  onTap: () {
-                    PositionEstimation.exceute();
+                  onTap: () async {
+                    for(int i = 0; i < 10; i++){
+                      await SetupPosition(wifiLayer);
+                      await fileuseracc.writeAsString("${p.longitude},${p.latitude},${PositionEstimation.estimatedPosi.x},${PositionEstimation.estimatedPosi.y},$text\n", mode: FileMode.append);
+                      _showToast(context, "done $i");
+                      setState(() {
+                        markers.add(Marker(point: LatLng(PositionEstimation.estimatedPosi.y, PositionEstimation.estimatedPosi.x), child: Icon(Icons.add)));
+                      });
+                    }
+
                   },
                   child: Container(
                     color: Colors.deepPurpleAccent,
                     height: 100,
-                    child: Text("Test"),
+                    width: 300,
+                    child: Text("Test"),//18m 3m
+                  ),
+                ),
+                Container(
+                  height: 300,
+                  width: 300,
+                  child: FlutterMap(options:MapOptions(
+                    initialCenter: const LatLng(52.51662390833064, 13.323514830215117),
+                    initialZoom: 19.0,
+                    minZoom: 10,
+                    maxZoom: 24,
+                    onPositionChanged: (position, hasGesture) {
+                      // Fill your stream when your position changes
+                      final zoom = position.zoom;
+                      if (zoom != null) {
+                      }
+                    },
+
+                  ),
+                    children: [
+                      TileLayer(
+                        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        /*urlTemplate: 'asset/mar_eg/{z}/{x}/{y}.png',
+                    tileProvider: AssetTileProvider(),*/
+                        minZoom: 9.0,
+                        maxZoom: 25.0,
+                      ),
+                      MarkerLayer(markers: markers)
+
+                    ],
                   ),
                 ),
                 GestureDetector(

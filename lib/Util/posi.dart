@@ -7,7 +7,6 @@ class Posi{
 
   @override
   String toString() {
-    // TODO: implement toString
-    return "Posi x:$x, y:$y\n";
+    return "x:$x, y:$y";
   }
 }

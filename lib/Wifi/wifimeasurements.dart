@@ -1,7 +1,5 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
-import 'package:indoornavigation/Wifi/reference_point.dart';
 import 'package:indoornavigation/Wifi/wifi.dart';
 import 'package:wifi_scan/wifi_scan.dart';
 
@@ -15,13 +13,11 @@ class WifiMeasurements{
 
   static late Stream<List<WiFiAccessPoint>> wifiresultstream;
 
-  static void SetupWifi(BuildContext context) {
+  static void setupWifi(BuildContext context) {
     wifiresultstream = controller.stream;
-    print("Setupwifi");
     wifi.canGetScannedResults();
     wifi.startScan();
     wifi.startListeningToScanResults().then((value) {
-      print("wifi");
       wifi.subscription?.onData((value) async {
         //print(value);
         wasScannedAfterset = true;
@@ -30,10 +26,9 @@ class WifiMeasurements{
         //}
 
         count++;
-
         accespoints = value;
         controller.add(value);
-
+        await Future.delayed(const Duration(seconds: 5));
         wifi.startScan();
       });
     });

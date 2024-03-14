@@ -3,7 +3,7 @@ import 'dart:io';
 
 
 
-class localData{
+class LocalData{
 
   static Future<String> getFilePath([String sensortype = ""]) async {
 
@@ -31,7 +31,7 @@ class localData{
 
   static int numberOfFiles(){
     int lenght = 0;
-    localData.getFilesInDir().then((value) => lenght = value.length);
+    LocalData.getFilesInDir().then((value) => lenght = value.length);
     return lenght;
   }
 

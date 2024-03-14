@@ -4,8 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_geojson/flutter_map_geojson.dart';
 import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
-import 'package:fluttertoast/fluttertoast.dart';
-import 'package:indoornavigation/Pages/Widgets/floorselector.dart';
 import 'package:indoornavigation/Util/BuildingInfo.dart';
 import 'package:indoornavigation/Util/map_loader.dart';
 import 'package:indoornavigation/Wifi/wifi_layer.dart';
@@ -13,18 +11,16 @@ import 'package:indoornavigation/Wifi/wifimeasurements.dart';
 import 'package:indoornavigation/constants/constants.dart';
 import 'package:indoornavigation/dra/my_sensors.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:syncfusion_flutter_charts/charts.dart';
-
-import '../Util/posi.dart';
+import '../Util/levelCalculator.dart';
 import '../constants/sizes.dart';
 import '../dra/positionalgorithm/positionEstimation.dart';
 import 'Widgets/custom_slider_thumb.dart';
 
 class MapPage extends StatefulWidget {
   static int selectedfloor = 0;
-  WifiLayer wifiLayer;
+  final WifiLayer wifiLayer;
   static double heading = 0.0;
-  MapPage({super.key, required this.wifiLayer });
+  const MapPage({super.key, required this.wifiLayer });
 
   @override
   State<MapPage> createState() => _MapPageState();
@@ -39,7 +35,7 @@ class _MapPageState extends State<MapPage> {
   static bool follow = true;
   static double zoom = 19;
 
-  List<MapLoader> _listMaps = [];
+  final List<MapLoader> _listMaps = [];
   GeoJsonParser geoJsonParser = GeoJsonParser(
     defaultMarkerColor: Colors.red,
     defaultPolygonBorderColor: Colors.blue,
@@ -56,7 +52,7 @@ class _MapPageState extends State<MapPage> {
             color: Colors.lightGreenAccent,
             label: properties['name'].toString(),
             labelPlacement: PolygonLabelPlacement.polylabel,
-            labelStyle: TextStyle(color: black, fontSize: 20));
+            labelStyle: const TextStyle(color: black, fontSize: 20));
       }
       return Polygon(
           points: points,
@@ -78,12 +74,12 @@ class _MapPageState extends State<MapPage> {
   }
   late StreamSubscription subscription;
 
-  late List<StreamSubscription> to_end_beforeReturn = [];
+  late List<StreamSubscription> streamSubscriptions = [];
 
   Future<void> cancelStreamsbeforeReturn() async {
-    print("subscritions aktive:${to_end_beforeReturn.length}");
-    for(int i = 0; i < to_end_beforeReturn.length; i++){
-      await to_end_beforeReturn[i].cancel();
+    print("subscritions aktive:${streamSubscriptions.length}");
+    for(int i = 0; i < streamSubscriptions.length; i++){
+      await streamSubscriptions[i].cancel();
     }
   }
 
@@ -123,7 +119,7 @@ class _MapPageState extends State<MapPage> {
               Image.asset(
                 "asset/images/calivration.gif",
               ),
-              Text("Accuracy: low")
+              const Text("Accuracy: low")
             ],
           ),
           actions: <Widget>[
@@ -168,26 +164,23 @@ class _MapPageState extends State<MapPage> {
   }
 
   List<Marker> markers = [];
-  static Marker marker = Marker(
-    child: Icon(
-        Icons.accessibility
-    ),
-    point: LatLng(0,0)
-  );
 
   void createMarkerForreferencePoints(){
     for(int i = 0; i < widget.wifiLayer.referencePoints.length; i++){
       Marker marker = Marker(
-          child: Icon(
+          child: const Icon(
               Icons.add_circle_outline
           ),
-          point: LatLng(this.widget.wifiLayer.referencePoints[i].latitude, this.widget.wifiLayer.referencePoints[i].longitude));
-      markers.add(marker);
+          point: LatLng(widget.wifiLayer.referencePoints[i].latitude, widget.wifiLayer.referencePoints[i].longitude));
+      if(widget.wifiLayer.referencePoints[i].accesspoints.isNotEmpty){
+        markers.add(marker);
+      }
+
     }
   }
 
   void startStream(){
-    to_end_beforeReturn.add(
+    streamSubscriptions.add(
       MySensors.acuracyStream.listen((event) {
         accuracy = event;
         if(MySensors.magnetometer_accuray != 3 && showing == false){
@@ -204,32 +197,13 @@ class _MapPageState extends State<MapPage> {
         });
       })
     );
-
-    to_end_beforeReturn.add(
-      PositionEstimation.estimatedPositionStream.listen((event) {
-      print("Estimatec position is: $event");
-
-      if(showing == false){
-        setState(() {
-          LatLng position = LatLng(event.y, event.x);
-
-          if(follow == true){
-            mapController.move(position, zoom);
-          }
-
-        });
-      }
-
-    })
-    );
-
   }
 
   MapController mapController = MapController(
 
   );
 
-  Future<bool> SetupSensors() async{
+  Future<bool> setupSensors() async{
     MySensors mySensors = MySensors();
     return mySensors.StartSensorsAndPosition(context);
   }
@@ -237,18 +211,30 @@ class _MapPageState extends State<MapPage> {
   final _streamController = StreamController<double>();
   Stream<double> get onZoomChanged => _streamController.stream;
 
+  Future<bool> SetupSensors() async{
+    MySensors mySensors = MySensors();
+    return mySensors.StartSensorsAndPosition(context);
+  }
+
   @override
   void initState() {
     // TODO: implement initState
 
     super.initState();
+    LevelCalculator.checkSensorsAvaileble();
+    WifiMeasurements.setupWifi(context);
+    ////startlisten();
+    //SetupSensors().then((value){
+    //  print("Sensors is ready: $value");
+    //});
+    //PositionEstimation.startTimer();
     getMap(0, "mar");
     getWholebuilding("mar");
-    SetupSensors().then((value){
-      print("Sensors is ready: $value");
-    });
+    //setupSensors().then((value){
+    //  print("Sensors is ready: $value");
+    //});
     startStream();
-    createMarkerForreferencePoints();
+    //createMarkerForreferencePoints();
 
     _controllerText = TextEditingController();
 
@@ -260,23 +246,17 @@ class _MapPageState extends State<MapPage> {
   @override
   void dispose() {
     _streamController.close();
-    for(int i = 0; i < to_end_beforeReturn.length; i++){
-      to_end_beforeReturn[i].cancel();
+    for(int i = 0; i < streamSubscriptions.length; i++){
+      streamSubscriptions[i].cancel();
     }
     super.dispose();
   }
 
   int aktivefloor = 0;
 
-  static LocationMarkerPosition _currentPosition = LocationMarkerPosition(
-    latitude: 0,
-    longitude: 0,
-    accuracy: 0,
-  );
-
   @override
   Widget build(BuildContext context) {
-    if (_listMaps.length >= 1) {
+    if (_listMaps.isNotEmpty) {
       String geoJson = _listMaps.first.GeoJson;
       //print(_listMaps.length);
       for (int i = 0; i < _listMaps.length; i++) {
@@ -298,142 +278,137 @@ class _MapPageState extends State<MapPage> {
               },
             ),
         ),*/
-        body: Container(
-          child: Stack(children: [
-            FlutterMap(
-              mapController: mapController,
-              options: MapOptions(
-                  center: LatLng(52.51662390833064, 13.323514830215117),
-                  zoom: 19.0,
-                  minZoom: 10,
-                  maxZoom: 24,
-                  initialRotation: 68,
-                  onPositionChanged: (position, hasGesture) {
-                    // Fill your stream when your position changes
-                    final zoom = position.zoom;
-                    if (zoom != null) {
-                      _streamController.sink.add(zoom);
-                    }
-                  },
+        body: Stack(children: [
+          FlutterMap(
+            mapController: mapController,
+            options: MapOptions(
+                initialCenter: const LatLng(52.51662390833064, 13.323514830215117),
+                initialZoom: 19.0,
+                minZoom: 10,
+                maxZoom: 24,
+                onPositionChanged: (position, hasGesture) {
+                  // Fill your stream when your position changes
+                  final zoom = position.zoom;
+                  if (zoom != null) {
+                    _streamController.sink.add(zoom);
+                  }
+                },
 
+            ),
+            children: [
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                /*urlTemplate: 'asset/mar_eg/{z}/{x}/{y}.png',
+                    tileProvider: AssetTileProvider(),*/
+                minZoom: 9.0,
+                maxZoom: 25.0,
               ),
-              children: [
-                TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  /*urlTemplate: 'asset/mar_eg/{z}/{x}/{y}.png',
-                      tileProvider: AssetTileProvider(),*/
-                  minZoom: 9.0,
-                  maxZoom: 25.0,
-                ),
-                PolygonLayer(polygons: geoJsonParser.polygons),
-                PolylineLayer(polylines: geoJsonParser.polylines),
-                MarkerLayer(markers: geoJsonParser.markers),
-                MarkerLayer(markers: markers),
-                CurrentLocationLayer(
-                  positionStream: PositionEstimation.mapPosStream,
-                  headingStream: MySensors.headingStream,
-                ),
-              ],
-            ),
-            Column(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Column(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Floorseletor(-1, 6),
-                        GestureDetector(
-                          onTap: (){
-                            if(follow==true) {
+              PolygonLayer(polygons: geoJsonParser.polygons),
+              PolylineLayer(polylines: geoJsonParser.polylines),
+              MarkerLayer(markers: geoJsonParser.markers),
+              MarkerLayer(markers: markers),
+              CurrentLocationLayer(
+                positionStream: PositionEstimation.mapPosStream,
+                headingStream: MySensors.headingStream,
+                alignDirectionOnUpdate: follow == true ?AlignOnUpdate.always : AlignOnUpdate.never,
+                alignPositionOnUpdate: follow == true ?AlignOnUpdate.always : AlignOnUpdate.never,
+              ),
+            ],
+          ),
+          Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      floorSelector(-1, 6),
+                      GestureDetector(
+                        onTap: (){
+                          if(follow==true) {
 
-                              follow = false;
-                              _showToast(context,"follow deactivated!");
-                            }else if(follow == false){
+                            follow = false;
+                            _showToast(context,"follow deactivated!");
+                          }else if(follow == false){
 
-                              follow = true;
-                              _showToast(context,"follow activated!");
+                            follow = true;
+                            _showToast(context,"follow activated!");
 
-                            }
+                          }
 
-                          },
-                          child: Container(
-                            height: 50,
-                            width: 50,
-                            decoration: const BoxDecoration(
-                              color: lightGrey,
-                              borderRadius: BorderRadius.all(Radius.circular(20))
-
-                            ),
-                            margin: EdgeInsets.only(top: 20,right: Sizes.paddingRegular, bottom: Sizes.paddingBig-15 ),
-                            child: const Icon(
-                                Icons.navigation,
-                              color: white,
-                            ),
-                          ),
-                        )
-                      ],
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            Container(
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    Container(
-                      margin: EdgeInsets.only(left: 20, right: 20, bottom: 100, top: 20),
-                      padding: EdgeInsets.only(left: 10,right: 10),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.all(Radius.circular(15)),
-                        color: white,
-                      ),
-                      child: TextField(
-                        onChanged: (data){
-                          print(data);
                         },
-                        decoration: InputDecoration(
-                          prefixIcon: Icon(Icons.
-                          search),
-                          labelText: 'Search',
-                          border: InputBorder.none
-                        ),
-                        controller: _controllerText,
-                        style: TextStyle(
-                          fontSize: Sizes.textSizeRegular,
-                          color: Color(0xff000000),
-                        ),
-                      ),
-                    ),
-                    Container(
-                      
-                      child: Text(
-                        "lat:${PositionEstimation.estimatedPosi.y},long:${PositionEstimation.estimatedPosi.x}\n"
-                        "${WifiLayerGetter.wifiLayerDowaloaded}\n"
-                        "Scanned wifi${WifiMeasurements.accespoints.length}\n"
-                        "walked distance: ${PositionEstimation.walkedDistance} Stepstaken:${PositionEstimation.steps}\n"
-                        "heading ${MySensors.heading}\n"
-                        "Magn Acuracy ${MySensors.magnetometer_accuray}\n"
-                            "ref set with wifis:${PositionEstimation.uploadedrefsAccespoints}\n"
+                        child: Container(
+                          height: 50,
+                          width: 50,
+                          decoration: const BoxDecoration(
+                            color: lightGrey,
+                            borderRadius: BorderRadius.all(Radius.circular(20))
 
-                      ),
-                      padding: EdgeInsets.all(15),
-                    )
-                  ],
-                ),
+                          ),
+                          margin: EdgeInsets.only(top: 20,right: Sizes.paddingRegular, bottom: Sizes.paddingBig-15 ),
+                          child: const Icon(
+                              Icons.navigation,
+                            color: white,
+                          ),
+                        ),
+                      )
+                    ],
+                  ),
+                ],
               ),
-            )
-          ]),
-        ),
+            ],
+          ),
+          SingleChildScrollView(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                Container(
+                  margin: const EdgeInsets.only(left: 20, right: 20, bottom: 20, top: 20),
+                  padding: const EdgeInsets.only(left: 10,right: 10),
+                  decoration: const BoxDecoration(
+                    borderRadius: BorderRadius.all(Radius.circular(15)),
+                    color: white,
+                  ),
+                  child: TextField(
+                    onChanged: (data){
+                      print(data);
+                    },
+                    decoration: const InputDecoration(
+                      prefixIcon: Icon(Icons.
+                      search),
+                      labelText: 'Search',
+                      border: InputBorder.none
+                    ),
+                    controller: _controllerText,
+                    style: TextStyle(
+                      fontSize: Sizes.textSizeRegular,
+                      color: const Color(0xff000000),
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(15),
+                  child: Text(
+                    "lat:${PositionEstimation.estimatedPosi.y},long:${PositionEstimation.estimatedPosi.x}\n"
+                    "${WifiLayerGetter.wifiLayerDowaloaded}\n"
+                    "Scanned wifi${WifiMeasurements.accespoints.length}\n"
+                    "walked distance: ${PositionEstimation.walkedDistance} Stepstaken:${PositionEstimation.steps}\n"
+                    "heading ${MySensors.oldheading}\n"
+                    "Magn Acuracy ${MySensors.magnetometer_accuray}\n"
+                    "ref set with wifis:${PositionEstimation.uploadedrefsAccespoints}\n"
+                  ),
+                )
+              ],
+            ),
+          )
+        ]),
       ));
     } else {
       return Container(
         color: Colors.white,
-        child: Center(
+        child: const Center(
           child: CircularProgressIndicator(
             color: Colors.red,
             value: null,
@@ -443,7 +418,7 @@ class _MapPageState extends State<MapPage> {
     }
   }
 
-  Widget Floorseletor(int levelStart, int levelEnd) {
+  Widget floorSelector(int levelStart, int levelEnd) {
     List<int> floors = [];
     floors.add(levelStart);
     if (levelStart != levelEnd) {
@@ -461,7 +436,7 @@ class _MapPageState extends State<MapPage> {
       height: 250,
       width: 30,
 
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         borderRadius: BorderRadius.all(Radius.circular(20)),
         color: lightGrey
       ),
@@ -478,14 +453,14 @@ class _MapPageState extends State<MapPage> {
 
             thumbShape: CustomSliderThumbRect(
               textColor: white,
-              thumbColor: Color.fromARGB(255, 94, 94, 94),
+              thumbColor: const Color.fromARGB(255, 94, 94, 94),
               max: max,
               min: min,
               thumbRadius: 20,
               thumbHeight: 40.0,
             ),
             showValueIndicator: ShowValueIndicator.onlyForDiscrete,
-            valueIndicatorTextStyle: TextStyle(
+            valueIndicatorTextStyle: const TextStyle(
               color: Colors.white,
             ),
 
@@ -515,8 +490,8 @@ class _MapPageState extends State<MapPage> {
     scaffold.showSnackBar(
       SnackBar(
 
-        content: Text('$text'),
-        duration: Duration(seconds: 1),
+        content: Text(text),
+        duration: const Duration(seconds: 1),
       ),
     );
   }

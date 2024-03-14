@@ -17,9 +17,14 @@ class StepDetection{
   static List<double> accelerations=List.filled(100, 0.0);
   static List<Peak> peaksAndValey= [];
   static double overallacctoY = 0.0;
-  static double topLimit = 2.5;
+  static double topLimit = 5.0;
   static bool wasbiggerThanTopLimit = false;
+  static double SL = 1.0;
+  static double K = 1.0;
 
+  static double StepLength(double accT,double accL){
+    return K * pow(accT-accL, 1/4);
+  }
 
 
   static void detectPeakAndValey (List<double> userAccValues, int timestamp){
@@ -46,6 +51,7 @@ class StepDetection{
         if(valey.counted == false){
           valeys++;
           valey.counted = true;
+          peaksAndValey.add(valey);
         }
       }
     }else{
@@ -64,10 +70,20 @@ class StepDetection{
               peaks++;
               steps++;
               peak.counted = true;
+              peaksAndValey.add(peak);
             }
             lasttimePeak = peak.timeStamp;
           }
         }
+      }
+    }
+    if(peaksAndValey.length >= 2){
+      if(peaksAndValey[0].positive == true && peaksAndValey[1].positive == false && peaksAndValey[0].counted == true){
+        SL = StepLength(peaksAndValey[0].acc, peaksAndValey[1].acc);
+        print("Steplength is :$SL");
+        peaksAndValey.clear();
+      }else{
+        peaksAndValey.clear();
       }
     }
     //print("Steps $steps");
