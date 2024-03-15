@@ -167,6 +167,7 @@ class MySensors {
     ));
     _streamSubscriptions.add(EnvironmentSensors().pressure.listen((event) {
       pressure = event;
+      Leveldetection(pressure);
     }));
     _streamSubscriptions.add(magnetometerEventStream(samplingPeriod: SensorInterval.uiInterval).listen(
               (MagnetometerEvent event) {
@@ -209,6 +210,22 @@ class MySensors {
     );
     return true;
   }
+
+  static int floor = 0;
+  static double pressureAtZero = -1;
+  static void Leveldetection(double pressure){
+    if(pressureAtZero == -1 ){
+      return;
+    }else{
+      double dif = pressure - pressureAtZero;
+      if(dif > 0.3){
+        floor = (dif % 0.3).round();
+      }else if(dif < -0.1){
+        floor = -1;
+      }
+    }
+  }
+
 }
 
 class _ChartData {
